@@ -1,6 +1,6 @@
 import contextlib
 from dataclasses import dataclass, field
-from typing import Dict, Any, List, AsyncIterator, Sequence, Optional
+from typing import Dict, Any, List, AsyncIterator, Sequence, Optional, AsyncIterable, AsyncContextManager, Iterator
 
 from .common import AsyncTransportClient
 from .rpc import deserialize, CALL_FAILED, CALL_SUCCEEDED, serialize, ISerializer, IBlockStream
@@ -15,8 +15,10 @@ class AsyncClientConnection:
     retry_timeout: int = 5
     request_in_progress: bool = field(default=False, init=False)
 
+    def __post_init__(self) -> None:
+        assert self.transport.is_connected, "Transport must be connected"
+
     async def connect(self) -> 'Proxy':
-        await self.transport.connect()
         return Proxy(self, [], False)
 
     async def disconnect(self) -> None:
@@ -32,47 +34,53 @@ class AsyncClientConnection:
     def get_peer_info(self) -> Any:
         raise NotImplementedError()
 
-    async def process_rpc_results(self, data_iter: AsyncIterator[bytes], stream_allowed: bool) -> Any:
-        name, args, kwargs = deserialize(data_iter, stream_allowed, self.serializer, self.bstream)
+    async def process_rpc_results(self, data_iter: AsyncIterable[bytes], stream_allowed: bool) -> Any:
+        name, args, kwargs = await deserialize(data_iter, stream_allowed, self.serializer, self.bstream)
         assert kwargs == {}
-        assert len(args) == 1
         if name == CALL_FAILED:
-            exc, tb = args[0]
+            assert len(args) == 2
+            exc, tb = args
             raise exc from Exception("RPC server traceback:\n" + tb)
         else:
             assert name == CALL_SUCCEEDED
+            assert len(args) == 1
             return args[0]
 
-    async def rpc_call(self,
-                       path: List[str],
-                       timeout: Optional[float],
-                       args: Sequence,
-                       kwargs: Dict[str, Any],
-                       streamed: bool) -> Any:
+    def prepare_call(self, path: List[str], timeout: Optional[float], args: Sequence, kwargs: Dict[str, Any]) \
+            -> AsyncContextManager[AsyncIterable[bytes]]:
 
         assert timeout is None, "Timeout not supported yet"
         data_iter = serialize(".".join(path), list(args), kwargs, self.serializer, self.bstream)
 
         req = self.transport.make_request(data_iter)
 
-        @contextlib.asynccontextmanager
-        async def call_proxy() -> AsyncIterator:
-            if not self.transport.multiplexed:
-                assert not self.request_in_progress, "Can't share connection between requests"
+        if not self.transport.multiplexed:
+            assert not self.request_in_progress, "Can't share connection between requests"
 
-            self.request_in_progress = True
+        return req
 
-            try:
-                with req as result_stream:
-                    yield await self.process_rpc_results(result_stream, False)
-            finally:
-                self.request_in_progress = False
+    async def rpc_call(self,
+                       path: List[str],
+                       timeout: Optional[float],
+                       args: Sequence,
+                       kwargs: Dict[str, Any]) -> Any:
 
-        if streamed:
-            return call_proxy()
-        else:
-            async with call_proxy() as result:
-                return result
+        async with self.prepare_call(path, timeout, args, kwargs) as result:
+            return await self.process_rpc_results(result, False)
+
+    @contextlib.asynccontextmanager
+    async def rpc_streamed_call(self,
+                                path: List[str],
+                                timeout: Optional[float],
+                                args: Sequence,
+                                kwargs: Dict[str, Any]) -> Iterator[Any]:
+        req = self.prepare_call(path, timeout, args, kwargs)
+        self.request_in_progress = True
+        try:
+            async with req as result_stream:
+                yield await self.process_rpc_results(result_stream, True)
+        finally:
+            self.request_in_progress = False
 
 
 @dataclass
@@ -89,4 +97,7 @@ class Proxy:
         return self.__class__(self._conn, self._path + [name], self._streamed)
 
     def __call__(self, *args, _call_timeout: float = None, **kwargs) -> Any:
-        return self._conn.rpc_call(self._path, _call_timeout, args, kwargs, self._streamed)
+        if self._streamed:
+            return self._conn.rpc_streamed_call(self._path, _call_timeout, args, kwargs)
+        else:
+            return self._conn.rpc_call(self._path, _call_timeout, args, kwargs)

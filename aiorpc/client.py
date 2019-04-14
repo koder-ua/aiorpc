@@ -4,17 +4,16 @@ import time
 import zlib
 import logging
 import asyncio
-import contextlib
 from io import BytesIO
 from pathlib import Path
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Tuple, Union, AsyncIterator, BinaryIO, NamedTuple, cast, Iterable, Optional, \
-    Callable, AsyncContextManager
+from typing import (Any, Dict, List, Tuple, Union, AsyncIterator, BinaryIO, NamedTuple, cast, Iterable, Optional,
+                    Callable, AsyncContextManager)
 
 from koder_utils import CMDResult, CmdType, IAsyncNode, AnyPath, BaseConnectionPool
 
-from .common import IReadableAsync, ChunkedFile, ZlibStreamDecompressor, ZlibStreamCompressor, ConnectionFailed, \
-    AsyncTransportClient
+from .common import (IReadableAsync, ChunkedFile, ZlibStreamDecompressor, ZlibStreamCompressor, ConnectionFailed,
+                     AsyncTransportClient)
 
 from .rpc import BlockType, SimpleBlockStream, JsonSerializer
 from .proxy import AsyncClientConnection, Proxy
@@ -46,19 +45,7 @@ class StatRes(NamedTuple):
 
 
 @dataclass
-class IReadableAsyncFromStream(IReadableAsync):
-    chunked_aiter: AsyncIterator[Tuple[BlockType, bytes]]
-    expected_type: BlockType = BlockType.binary
-
-    async def readany(self) -> bytes:
-        async for tp, data in self.chunked_aiter:
-            assert tp == self.expected_type
-            return data
-        return b''
-
-
-@dataclass
-class IAgentRPCNode(IAsyncNode):
+class IAOIRPCNode(IAsyncNode):
     conn: AsyncClientConnection
     proxy: Optional[Proxy] = field(default=None, init=False)
 
@@ -84,13 +71,13 @@ class IAgentRPCNode(IAsyncNode):
 
     async def iter_file(self, path: AnyPath, compress: bool = True) -> AsyncIterator[bytes]:
         assert self.proxy, "Not connected"
+
         async with self.proxy.streamed.fs.get_file(str(path), compress=compress) as block_iter:
             if compress:
-                async for chunk in ZlibStreamDecompressor(IReadableAsyncFromStream(block_iter)):
+                async for chunk in ZlibStreamDecompressor(block_iter):
                     yield chunk
             else:
-                async for tp, chunk in block_iter:
-                    assert tp == BlockType.binary
+                async for chunk in block_iter:
                     yield chunk
 
     async def write(self, path: AnyPath, content: Union[BinaryIO, bytes, IReadableAsync], compress: bool = True):
@@ -163,54 +150,42 @@ class IAgentRPCNode(IAsyncNode):
         return root_dev, dev
 
 
-MakeTransport = Callable[[...], AsyncContextManager[AsyncTransportClient]]
-MakeRpcNode = Callable[[...], AsyncContextManager[IAgentRPCNode]]
+async def make_aiorpc_conn(transport: AsyncTransportClient) -> IAOIRPCNode:
+    await transport.connect()
+    params = await transport.get_settings()
+    assert params['serializer'] == 'json', f"Serializer {params['serializer']} not supported"
+    assert params['bstream'] == 'simple', f"Blocks stream {params['bstream']} not supported"
+    base_rpc = AsyncClientConnection(transport, serializer=JsonSerializer(), bstream=SimpleBlockStream())
+    return IAOIRPCNode(base_rpc)
 
 
-@contextlib.asynccontextmanager
-def connect(conn_factory: MakeRpcNode, conn_params: Dict[str, Any]) -> Iterable[IAgentRPCNode]:
-    async with conn_factory(**conn_params) as conn:
-        params = await conn.get_settings()
-        assert params['serializer'] == 'json', f"Serializer {params['serializer']} not supported"
-        assert params['bstream'] == 'simple', f"Blocks stream {params['bstream']} not supported"
-        base_rpc = AsyncClientConnection(conn, serializer=JsonSerializer(), bstream=SimpleBlockStream())
-        node = IAgentRPCNode(base_rpc)
-        node.connect()
-        try:
-            yield node
-        finally:
-            node.disconnect()
-
-
-class ConnectionPool(BaseConnectionPool[IAgentRPCNode]):
+class ConnectionPool(BaseConnectionPool[IAOIRPCNode]):
     def __init__(self,
                  conn_params: Dict[str, Dict[str, Any]],
                  max_conn_per_node: int,
-                 conn_factory: MakeRpcNode) -> None:
+                 transport_cls: Callable[..., AsyncTransportClient]) -> None:
         BaseConnectionPool.__init__(self, max_conn_per_node=max_conn_per_node)
         self.conn_urls = conn_params
-        self.conn_factory = conn_factory
-        self.contexts: Dict[IAgentRPCNode, AsyncContextManager[IAgentRPCNode]] = {}
+        self.transport_cls = transport_cls
 
-    async def _rpc_connect(self, conn_addr: str) -> IAgentRPCNode:
+    async def rpc_connect(self, conn_addr: str) -> IAOIRPCNode:
         """Connect to nodes and fill Node object with basic node info: ips and hostname"""
-        cmg = cast(AsyncContextManager[IAgentRPCNode], connect(self.conn_factory, self.conn_urls[conn_addr]))
-        node = await cmg.__aenter__()
-        self.contexts[node] = cmg
-        return node
+        transport: AsyncTransportClient = self.transport_cls(**self.conn_urls[conn_addr])
+        conn = await make_aiorpc_conn(transport)
+        await conn.__aenter__()
+        return conn
 
-    async def _rpc_disconnect(self, conn: IAgentRPCNode) -> None:
-        await self.contexts[conn].__aexit__(None, None, None)
-        del self.contexts[conn]
+    async def rpc_disconnect(self, conn: IAOIRPCNode) -> None:
+        await conn.__aexit__(None, None, None)
 
 
-async def wait_ready(conn_factory: MakeTransport,
-                     conn_params: Any,
+async def wait_ready(transport_cls: Callable[..., AsyncTransportClient],
+                     conn_params: Dict[str, Any],
                      timeout: float = 30,
                      period: float = 0.1):
 
     async def do_check():
-        async with conn_factory(conn_params) as conn:
+        async with transport_cls(**conn_params) as conn:  # type: ignore
             await conn.get_settings()
 
     end_time = time.time() + timeout
@@ -251,7 +226,7 @@ class ReadFileLike:
 
 class WriteFileLike(IReadableAsync):
     def __init__(self) -> None:
-        self._q = asyncio.Queue(maxsize=1)
+        self._q: asyncio.Queue = asyncio.Queue(maxsize=1)
         self._closed = False
 
     def close(self) -> None:
@@ -272,7 +247,7 @@ class WriteFileLike(IReadableAsync):
         await self._q.put(data)
 
 
-class IAgentRPCNodeWithRemoteFiles(IAgentRPCNode):
+class IAgentRPCNodeWithRemoteFiles(IAOIRPCNode):
     async def open(self, path: AnyPath, mode: str = "wb", compress: bool = True) -> Union[ReadFileLike, WriteFileLike]:
         assert self.proxy, "Not connected"
         if mode == "wb":

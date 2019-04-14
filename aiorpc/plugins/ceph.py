@@ -10,7 +10,8 @@ import collections
 from pathlib import Path
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Iterator, List, Dict, Tuple, Any, Callable, Set, Iterable, Coroutine, Optional, AsyncIterator
+from typing import Iterator, List, Dict, Tuple, Any, Callable, Set, Iterable, Coroutine, Optional, AsyncIterator, \
+    Awaitable, BinaryIO, cast
 
 from koder_utils import LocalHost, b2ssize
 from cephlib import (RecId, CephCLI, CephOp, ParseResult, RecordFile, CephHealth, iter_log_messages, iter_ceph_logs_fd,
@@ -33,7 +34,7 @@ class NoPoolFound(Exception):
 
 FileRec = Tuple[RecId, Any]
 BinaryFileRec = Tuple[RecId, bytes]
-BinInfoFunc = Callable[[], Coroutine[Any, Any, Iterable[FileRec]]]
+BinInfoFunc = Callable[[], Awaitable[Iterable[FileRec]]]
 
 GiB = 1 << 30
 MiB = 1 << 20
@@ -50,6 +51,7 @@ class HistoricCollectionConfig:
     size: int
     duration: int
     ceph_extra_args: List[str]
+    collection_end_time: float
     min_duration: Optional[int] = 50
     dump_unparsed_headers: bool = False
     pg_dump_timeout: Optional[int] = None
@@ -57,12 +59,11 @@ class HistoricCollectionConfig:
     extra_dump_timeout: Optional[int] = None
     max_record_file: int = DEFAULT_MAX_REC_FILE_SIZE
     min_device_free: int = DEFAULT_MIN_DEVICE_FREE
-    collection_end_time: Optional[float] = None
     packer_name: str = 'compact'
     cmd_timeout: float = 50
 
     def __str__(self) -> str:
-        attrs = "\n     ".join(f"{name}: {getattr(self, name)!r}" for name in self.__dataclass_fields__)
+        attrs = "\n     ".join(f"{name}: {getattr(self, name)!r}" for name in self.__dataclass_fields__)  # type: ignore
         return f"{self.__class__.__name__}:\n    {attrs}"
 
 
@@ -75,7 +76,7 @@ class HistoricCollectionStatus:
     disk_free_space: int
 
 
-def almost_sorted_ceph_log_messages(sort_buffer_size: int) -> Iterator[Tuple[float, CephHealth]]:
+def almost_sorted_ceph_log_messages(sort_buffer_size: int) -> Iterator[List[Tuple[float, CephHealth]]]:
     all_messages: List[Tuple[float, CephHealth]] = []
     for fd in iter_ceph_logs_fd():
         for message in iter_log_messages(fd):
@@ -100,19 +101,20 @@ def find_issues_in_ceph_log(max_lines: int = 100000, max_issues: int = 100) -> s
     return "".join(errs_warns[-max_lines:])
 
 
+#  Don't using namedtuples/classes to simplify serialization
 @expose
 def analyze_ceph_logs_for_issues(sort_buffer_size: int = 10000) \
         -> Tuple[Dict[str, int], List[Tuple[bool, float, float]]]:
 
-    error_per_type = collections.Counter()
-    status_ranges = []
-    currently_healthy = None
-    region_started_at = None
+    error_per_type: Dict[CephHealth, int] = collections.Counter()
+    status_ranges: List[Tuple[bool, float, float]] = []
+    currently_healthy = False
+    region_started_at: float = 0.0
 
     utc = None
     for all_messages in almost_sorted_ceph_log_messages(sort_buffer_size):
         for utc, mess_id in all_messages:
-            if region_started_at is None:
+            if region_started_at < 1.0:
                 region_started_at = utc
                 currently_healthy = mess_id == CephHealth.HEALTH_OK
                 continue
@@ -270,9 +272,9 @@ class InfoDumper(Recorder):
             logger.debug(f"Cluster info provides {b2ssize(len(rec[1]))}B")
 
 
-@dataclass
 class CephHistoricDumper:
-    def __init__(self, release: CephRelease, record_file_path: Path,
+    def __init__(self, release: CephRelease,
+                 record_file_path: Path,
                  collection_config: HistoricCollectionConfig) -> None:
         self.release = release
         self.record_file_path = record_file_path
@@ -293,7 +295,7 @@ class CephHistoricDumper:
             logger.error(f"Records file broken at offset {self.record_file.tell()}, truncated to last valid record")
 
         self.exit_evt = asyncio.Event()
-        self.active_loops_tasks = []
+        self.active_loops_tasks: Set[Awaitable] = set()
 
     def start(self) -> None:
         assert not self.active_loops_tasks
@@ -303,7 +305,8 @@ class CephHistoricDumper:
             (self.cfg.pg_dump_timeout, DumpPGDump(self.exit_evt, self.cli, self.cfg, self.record_file, self.packer)),
         ]
 
-        self.active_loops_tasks = [asyncio.create_task(self.loop(timeout, recorder)) for timeout, recorder in recorders]
+        self.active_loops_tasks = {asyncio.create_task(self.loop(timeout, recorder))
+                                   for timeout, recorder in recorders}
 
     def get_free_space(self) -> int:
         vstat = os.statvfs(str(self.record_file_path))
@@ -330,7 +333,7 @@ class CephHistoricDumper:
 
     async def stop(self, timeout=60) -> bool:
         self.exit_evt.set()
-        _, self.active_loops_tasks = await asyncio.wait(self.active_loops_tasks, timeout=timeout)
+        _, self.active_loops_tasks = await asyncio.wait(self.active_loops_tasks, timeout=timeout)  # type: ignore
 
         if not self.active_loops_tasks:
             self.record_file.close()
@@ -338,7 +341,7 @@ class CephHistoricDumper:
 
         return not self.active_loops_tasks
 
-    async def loop(self, timeout: float, recorder: Recorder) -> None:
+    async def loop(self, timeout: Optional[float], recorder: Recorder) -> None:
 
         if timeout is None:
             return
@@ -411,7 +414,7 @@ async def stop_historic_collection(not_err: bool = False) -> None:
             return
         assert False, "Not running"
 
-    cfg_path = historic_ops_file().parent / 'agent_historic_cfg.json'
+    cfg_path = historic_ops_cfg_file()
     if cfg_path.exists:
         cfg_path.unlink()
 
@@ -453,7 +456,8 @@ def get_historic_collection_status() -> HistoricCollectionStatus:
 def get_collected_historic_data(offset: int, size: int = None) -> IReadableAsync:
     historic_ops = historic_ops_file()
     assert historic_ops.exists(), f"File {historic_ops} with ops not found"
-    rfd = historic_ops.open("rb")
+    rfd = cast(BinaryIO, historic_ops.open("rb"))
+
     if offset:
         rfd.seek(offset)
 
@@ -468,7 +472,7 @@ async def restore_collection(_: Any):
 
     if cfg_path.exists:
         try:
-            historic_config_dct = json.load(cfg_path.exists.open())
+            historic_config_dct = json.load(cfg_path.open())
             historic_config = HistoricCollectionConfig(**historic_config_dct)
         except:
             logger.exception(f"Can't load historic config from {cfg_path}")

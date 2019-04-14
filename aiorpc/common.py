@@ -3,8 +3,8 @@ import ssl
 import hashlib
 import logging.config
 import zlib
-from typing import (Tuple, AsyncIterable, BinaryIO, Optional, Any, NewType, Dict, AsyncContextManager, Protocol,
-                    Callable, Coroutine, Union)
+from typing import (Tuple, AsyncIterable, BinaryIO, Optional, Any, NewType, Dict, AsyncContextManager,
+                    Callable, Union, Awaitable)
 
 from dataclasses import dataclass, field
 
@@ -145,6 +145,7 @@ class RPCStreamError(Exception):
 
 class AsyncTransportClient(ICloseOnExit):
     multiplexed: bool
+    is_connected: bool
 
     @abc.abstractmethod
     def __str__(self) -> str:
@@ -159,21 +160,23 @@ class AsyncTransportClient(ICloseOnExit):
         pass
 
 
-class AsyncTransportServer(Protocol):
+class AsyncTransportServer(metaclass=abc.ABCMeta):
+    @abc.abstractmethod
     def __str__(self) -> str:
-        ...
+        pass
 
+    @abc.abstractmethod
     async def serve_forever(self) -> None:
-        ...
+        pass
 
+    @abc.abstractmethod
     async def close(self):
-        ...
+        pass
 
+    @abc.abstractmethod
     async def start_listener(self) -> None:
-        ...
+        pass
 
 
-MakeServer = Callable[[...], AsyncTransportServer]
-ProcessRequest = Callable[[AsyncIterable[bytes]],
-                          Coroutine[Any, Any, Tuple[ErrCode, Union[None, bytes, AsyncIterable[bytes]]]]]
-
+MakeServer = Callable[..., AsyncTransportServer]
+ProcessRequest = Callable[[AsyncIterable[bytes]], Awaitable[Tuple[ErrCode, Union[None, bytes, AsyncIterable[bytes]]]]]

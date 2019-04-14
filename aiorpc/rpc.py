@@ -1,3 +1,4 @@
+import abc
 import json
 import base64
 import struct
@@ -5,7 +6,7 @@ import hashlib
 import subprocess
 from enum import Enum
 
-from typing import Any, Dict, List, Tuple, Optional, NamedTuple, AsyncIterator, AsyncIterable, cast, Union, Protocol
+from typing import Any, Dict, List, Tuple, Optional, NamedTuple, AsyncIterator, AsyncIterable
 
 from .plugins_api import exposed_types
 from .common import IReadableAsync, RPCStreamError
@@ -46,19 +47,24 @@ class Block(NamedTuple):
     raw_header: bytes
 
 
-class IBlockStream(Protocol):
+class IBlockStream(metaclass=abc.ABCMeta):
+    @abc.abstractmethod
     def check_digest(self, block_data: bytes, expected_digest: bytes):
         ...
 
+    @abc.abstractmethod
     def make_block_header(self, tp: BlockType, data: bytes) -> bytes:
         ...
 
+    @abc.abstractmethod
     def parse_block_header(self, header: bytes) -> Block:
         ...
 
+    @abc.abstractmethod
     def try_parse_block_header(self, buffer: bytes) -> Tuple[Optional[Block], bytes]:
         ...
 
+    @abc.abstractmethod
     async def yield_blocks(self, data_stream: AsyncIterable[bytes]) -> AsyncIterator[Tuple[BlockType, bytes]]:
         ...
 
@@ -66,10 +72,6 @@ class IBlockStream(Protocol):
 # ---- SERIALIZATION ---------------------------------------------------------------------------------------------------
 
 # transforming data into serializable types - basic types, lists, dicts of basic types
-
-SimpleType = Union[int, float, None, bool, str]
-# there no way to define recursive types in python as of now
-RawSerializable = Union[SimpleType, List[SimpleType], Dict[str, SimpleType], Dict, List]
 
 
 def prepare_for_serialization(args: List, kwargs: Dict) -> Tuple[Dict[str, Any], Optional[IReadableAsync]]:
@@ -79,7 +81,7 @@ def prepare_for_serialization(args: List, kwargs: Dict) -> Tuple[Dict[str, Any],
     return {'args': p_args, 'kwargs': p_kwargs}, None if streams == [] else streams[0]
 
 
-def do_prepare_for_serialization(val: Any, streams: List[IReadableAsync]) -> RawSerializable:
+def do_prepare_for_serialization(val: Any, streams: List[IReadableAsync]) -> Any:
     vt = type(val)
     if vt in (int, float, str, bool) or val is None:
         return val
@@ -91,7 +93,7 @@ def do_prepare_for_serialization(val: Any, streams: List[IReadableAsync]) -> Raw
         return [do_prepare_for_serialization(i, streams) for i in val]
 
     if vt is dict:
-        assert all(isinstance(key, str) for key in val)
+        assert all(isinstance(key, str) for key in val), "All dict keys mush be strings"
         assert CUSTOM_TYPE_KEY not in val, f"Can't use {CUSTOM_TYPE_KEY!r} as key serializable dict"
         return {key: do_prepare_for_serialization(value, streams) for key, value in val.items()}
 
@@ -102,7 +104,8 @@ def do_prepare_for_serialization(val: Any, streams: List[IReadableAsync]) -> Raw
 
     key = f"{vt.__module__}::{vt.__name__}"
     if key in exposed_types:
-        return {CUSTOM_TYPE_KEY: key, "attrs": do_prepare_for_serialization(exposed_types[key].pack(val), streams)}
+        return {CUSTOM_TYPE_KEY: key,
+                "attrs": do_prepare_for_serialization(exposed_types[key].pack(val), streams)}  # type: ignore
 
     if isinstance(val, Exception):
         if isinstance(val, subprocess.TimeoutExpired):
@@ -110,7 +113,7 @@ def do_prepare_for_serialization(val: Any, streams: List[IReadableAsync]) -> Raw
         elif isinstance(val, subprocess.CalledProcessError):
             args = (val.returncode, val.cmd, val.stdout, val.stderr)
         else:
-            args = val.args
+            args = val.args  # type: ignore
         return {CUSTOM_TYPE_KEY: EXCEPTION,
                 "name": val.__class__.__name__,
                 "args": do_prepare_for_serialization(args, streams)}
@@ -130,12 +133,18 @@ def after_deserialization(data: Dict[str, Any], stream: Any) -> Tuple[str, List,
     assert all(isinstance(key, str) for key in kwargs)
 
     streams = [stream]
-    args = after_deserialization(args, streams)
+    args = do_after_deserialization(args, streams)
     assert isinstance(args, list)
-    kwargs = after_deserialization(kwargs, streams)
+    kwargs = do_after_deserialization(kwargs, streams)
     assert isinstance(kwargs, dict)
     assert all(isinstance(key, str) for key in kwargs)
     return name, args, kwargs, streams == []
+
+
+async def yield_bytes_from_binary(iter: AsyncIterator[Tuple[BlockType, bytes]]) -> AsyncIterator[bytes]:
+    async for btype, data in iter:
+        assert btype == BlockType.binary
+        yield data
 
 
 def do_after_deserialization(val: Any, streams: List) -> Any:
@@ -144,20 +153,20 @@ def do_after_deserialization(val: Any, streams: List) -> Any:
         return val
 
     if vt is list:
-        return [after_deserialization(i, streams) for i in val]
+        return [do_after_deserialization(i, streams) for i in val]
 
     if vt is dict:
         class_fqname = val.get(CUSTOM_TYPE_KEY)
         if class_fqname is None:
             assert all(isinstance(key, str) for key in val)
-            return {key: after_deserialization(value, streams) for key, value in val.items()}
+            return {key: do_after_deserialization(value, streams) for key, value in val.items()}
         elif class_fqname == STREAM_TYPE:
             assert streams
-            return streams.pop()
+            return yield_bytes_from_binary(streams.pop())
         elif class_fqname == BYTES_TYPE:
             return base64.b64decode(val['val'].encode('ascii'))
         elif class_fqname in exposed_types:
-            return exposed_types[class_fqname].unpack(val['attrs'])
+            return exposed_types[class_fqname].unpack(val['attrs'])  # type: ignore
         elif class_fqname == EXCEPTION:
             args = do_after_deserialization(val["args"], streams)
             assert isinstance(args, list)
@@ -169,40 +178,44 @@ def do_after_deserialization(val: Any, streams: List) -> Any:
 # ------  SERIALIZERS RawSerializable -> bytes and back ----------------------------------------------------------------
 
 
-class ISerializer(Protocol):
-    def pack(self, data: RawSerializable) -> bytes:
+class ISerializer(metaclass=abc.ABCMeta):
+    @abc.abstractmethod
+    def pack(self, data: Any) -> bytes:
         ...
 
-    def unpack(self, data: bytes) -> RawSerializable:
+    @abc.abstractmethod
+    def unpack(self, data: bytes) -> Any:
         ...
 
 
-class JsonSerializer:
-    def pack(self, data: RawSerializable) -> bytes:
+class JsonSerializer(ISerializer):
+    def pack(self, data: Any) -> bytes:
         return json.dumps(data).encode()
 
-    def unpack(self, data: bytes) -> RawSerializable:
-        return cast(RawSerializable, json.loads(data.decode()))
+    def unpack(self, data: bytes) -> Any:
+        return json.loads(data.decode())
 
 
 # ------- STREAMERS - check sum, stream of blocks, etc -----------------------------------------------------------------
 
 
+BlockAIter = AsyncIterator[Tuple[BlockType, bytes]]
+
+
 class SimpleBlockStream(IBlockStream):
     block_header_struct = struct.Struct("!BL")
-    hash_factory = hashlib.md5
-    hash_digest_size = hash_factory().digest_size
+    hash_digest_size = hashlib.md5().digest_size
     block_header_size = block_header_struct.size + hash_digest_size
 
     def check_digest(self, block_data: bytes, expected_digest: bytes):
-        hashobj = self.hash_factory()
+        hashobj = hashlib.md5()
         hashobj.update(block_data)
 
         if hashobj.digest() != expected_digest:
             raise RPCStreamError("Checksum failed")
 
     def make_block_header(self, tp: BlockType, data: bytes) -> bytes:
-        hashobj = self.hash_factory()
+        hashobj = hashlib.md5()
         tp_and_size = self.block_header_struct.pack(tp.value, len(data))
         hashobj.update(tp_and_size)
         hashobj.update(data)
@@ -220,7 +233,8 @@ class SimpleBlockStream(IBlockStream):
 
         return self.parse_block_header(buffer[:self.block_header_size]), buffer[self.block_header_size:]
 
-    async def yield_blocks(self, data_stream: AsyncIterable[bytes]) -> AsyncIterator[Tuple[BlockType, bytes]]:
+    async def yield_blocks(self, data_stream: AsyncIterable[bytes]) -> BlockAIter:  # type: ignore
+
         buffer = b""
         block: Optional[Block] = None
 
@@ -281,8 +295,12 @@ async def deserialize(data_stream: AsyncIterable[bytes],
     """
     Unpack request from aiohttp.StreamReader or compatible stream
     """
-    blocks_iter = bstream.yield_blocks(data_stream).__aiter__()
-    tp, data = await blocks_iter.__anext__()
+    blocks_iter = bstream.yield_blocks(data_stream).__aiter__()  # type: ignore
+    try:
+        tp, data = await blocks_iter.__anext__()
+    except StopAsyncIteration:
+        raise ValueError("No data provided in responce")
+
     if tp != BlockType.serialized:
         raise RPCStreamError(f"Get block type of {tp.name} instead of serialized")
 

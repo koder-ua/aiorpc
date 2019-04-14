@@ -10,7 +10,7 @@ import subprocess
 import distutils.spawn
 from pathlib import Path
 import stat as stat_module
-from typing import List, Optional, Dict, Any, Tuple, Iterator
+from typing import List, Optional, Dict, Any, Tuple, Iterator, Union
 
 from koder_utils import run_stdout
 
@@ -41,7 +41,7 @@ def get_file(path: str, compress: bool = True) -> IReadableAsync:
 
 
 @expose
-def get_file_no_stream(path: str, compress: bool = True) -> IReadableAsync:
+def get_file_no_stream(path: str, compress: bool = True) -> Union[IReadableAsync, bytes]:
     if os.stat(path).st_size > MAX_FILE_SIZE:
         raise ValueError("File to large for single-shot stransfer")
     fc = open(path, "rb").read()
@@ -55,15 +55,16 @@ async def write_file(path: Optional[str], content: IReadableAsync, compress: boo
         os.close(fd)
 
     unzipobj = zlib.decompressobj() if compress else None
-
-    with open(path, "wb") as fd:
+    with open(path, "wb") as fobj:
         async for data in content:
             if compress:
+                assert unzipobj is not None  # make mypy happy
                 data = unzipobj.decompress(data)
-            fd.write(data)
+            fobj.write(data)
 
         if compress:
-            fd.write(unzipobj.flush())
+            assert unzipobj is not None  # make mypy happy
+            fobj.write(unzipobj.flush())
 
     return path
 
@@ -105,8 +106,8 @@ def fall_down(node: Dict, root: str, res_dict: Dict[str, str]):
 
 
 async def get_mountpoint_to_dev_mapping() -> Dict[str, str]:
-    lsblk = json.loads(await run_stdout(["lsblk", '-a', '--serialized']))
-    res = {}
+    lsblk = json.loads(await run_stdout(["lsblk", '-a', '--json']))
+    res: Dict[str, str] = {}
     for node in lsblk['blockdevices']:
         fall_down(node, node['name'], res)
     return res
@@ -121,7 +122,7 @@ def follow_symlink(fname: str) -> str:
 
 
 async def get_mounts() -> Dict[str, Tuple[str, str]]:
-    lsblk = json.loads(await run_stdout("lsblk --serialized"))
+    lsblk = json.loads(await run_stdout("lsblk --json"))
 
     def iter_mounts(curr: List[Dict[str, Any]], parent_device: str = None) -> Iterator[Tuple[str, str, str]]:
         for dev_info in curr:
@@ -150,8 +151,8 @@ async def get_dev_and_partition(fname: str) -> Tuple[str, str]:
 
 
 @expose
-def binarys_exists(names: List[str]) -> List[str]:
-    return [distutils.spawn.find_executable(name) is not None for name in names]
+def binarys_exists(names: List[str]) -> List[bool]:
+    return [(distutils.spawn.find_executable(name) is not None) for name in names]
 
 
 @expose
@@ -192,7 +193,7 @@ def get_block_devs_info(filter_virtual: bool = True) -> Dict[str, Tuple[bool, st
 
 @expose
 def stat(path: str) -> List[int]:
-    return list(os.stat(path))
+    return list(os.stat(path))  # type: ignore
 
 
 @expose

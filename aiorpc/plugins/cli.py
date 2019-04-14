@@ -17,7 +17,7 @@ expose = functools.partial(expose_func, "cli")
 
 
 all_procs: List[asyncio.subprocess.Process] = []
-last_killall_requested: int = 0
+last_killall_requested: float = 0
 last_killall_sig: Optional[int] = None
 
 
@@ -32,14 +32,14 @@ async def run_cmd(cmd: CmdType,
                   output_to_devnull: bool = False,
                   term_timeout: int = 1,
                   env: Dict[str, str] = None,
-                  **kwargs) -> Tuple[int, bytes, bytes]:
+                  **kwargs) -> Tuple[int, bytes, Optional[bytes]]:
 
     start_time = time.time()
 
     proc, input_data = await start_proc(cmd, input_data, merge_err, output_to_devnull,
                                         env=env, preexec_fn=os.setsid, **kwargs)
     try:
-        group = os.getpgid(proc.pid)
+        group: Optional[int] = os.getpgid(proc.pid)
     except ProcessLookupError:
         group = None
 
@@ -87,4 +87,4 @@ def killall(signal_num: int = signal.SIGKILL):
 
 @expose
 def environ() -> Dict[str, str]:
-    return os.environ
+    return dict(os.environ.items())
