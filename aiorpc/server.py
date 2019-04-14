@@ -5,10 +5,9 @@ from typing import AsyncIterable, Tuple, Union
 from aiohttp import web, BasicAuth
 
 from . import rpc
-from .interfaces import ErrCode
 from .aiohttp_transport import make_server as make_http_server
 from .plugins_api import ALL_CONFIG_VARS, exposed, exposed_async, on_server_startup, on_server_shutdown
-from .common import USER_NAME, encrypt_key, logger
+from .common import USER_NAME, encrypt_key, logger, ErrCode
 
 
 def check_key(target: str, for_check: str) -> bool:

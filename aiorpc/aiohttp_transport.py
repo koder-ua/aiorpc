@@ -1,3 +1,4 @@
+import re
 import ssl
 import json
 import contextlib
@@ -6,8 +7,7 @@ from typing import Dict, Any, AsyncIterable, Optional, Union, AsyncContextManage
 
 from aiohttp import web, BasicAuth, ClientSession
 
-from .interfaces import RpcRequestProcessCB
-from .common import USER_NAME, encrypt_key
+from .common import USER_NAME, encrypt_key, RpcRequestProcessCB, AsyncTransportClient
 
 
 PORT = 55667
@@ -15,7 +15,7 @@ DEFAULT_HTTP_CHUNK = 1 << 16
 MAX_CONTENT_SIZE = 1 << 30
 
 
-class AIOHttpTransportClient:
+class AIOHttpTransportClient(AsyncTransportClient):
     multiplexed = False
 
     def __init__(self,
@@ -26,14 +26,10 @@ class AIOHttpTransportClient:
                  user: str = USER_NAME,
                  headers: Dict[str, str] = None,
                  port: int = PORT) -> None:
+
         self.rpc_path = rpc_path
         self.headers = headers
-
-        if base_url.startswith("http://") or base_url.startswith("https://"):
-            self.rpc_url = base_url
-        else:
-            self.rpc_url = f"https://{base_url}:{port}{rpc_path}"
-
+        self.rpc_url = base_url if re.match(base_url, "http[s]://") else f"https://{base_url}:{port}{rpc_path}"
         self.api_key = api_key
         self.user = user
         self.request_in_progress = False
@@ -50,9 +46,11 @@ class AIOHttpTransportClient:
                             "auth": self.auth,
                             "verify_ssl": self.ssl is not None}
 
-    async def connect(self) -> 'AIOHttpTransportClient':
+    async def connect(self) -> None:
         await self.http_conn.__aenter__()
-        return self
+
+    async def disconnect(self) -> None:
+        await self.http_conn.__aexit__(None, None, None)
 
     def __str__(self) -> str:
         return f"HTTP({self.rpc_path})"
@@ -69,9 +67,6 @@ class AIOHttpTransportClient:
         async with self.http_conn.post(self.rpc_url, **self.post_params, data=data) as resp:
             async for chunk in resp.content.iter_chunked(DEFAULT_HTTP_CHUNK):
                 yield chunk
-
-    async def close(self):
-        await self.http_conn.__aexit__(None, None, None)
 
 
 def check_key(target: str, for_check: str) -> bool:

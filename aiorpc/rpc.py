@@ -8,7 +8,7 @@ from enum import Enum
 from typing import Any, Dict, List, Tuple, Optional, NamedTuple, AsyncIterator, AsyncIterable, cast, Union, Protocol
 
 from .plugins_api import exposed_types
-from .common import IReadableAsync
+from .common import IReadableAsync, RPCStreamError
 
 
 EOD_MARKER = b'\x00'
@@ -31,12 +31,6 @@ exc_list = [BaseException, SystemExit, KeyboardInterrupt, GeneratorExit, Excepti
 
 
 exc_map = {exc.__name__: exc for exc in exc_list}
-
-
-# async stream classes
-
-class RPCStreamError(Exception):
-    pass
 
 
 class BlockType(Enum):
@@ -194,7 +188,7 @@ class JsonSerializer:
 # ------- STREAMERS - check sum, stream of blocks, etc -----------------------------------------------------------------
 
 
-class SimpleBlockStream:
+class SimpleBlockStream(IBlockStream):
     block_header_struct = struct.Struct("!BL")
     hash_factory = hashlib.md5
     hash_digest_size = hash_factory().digest_size

@@ -3,9 +3,12 @@ import ssl
 import hashlib
 import logging.config
 import zlib
-from typing import Tuple, AsyncIterable, BinaryIO, Optional, Any
+from typing import (Tuple, AsyncIterable, BinaryIO, Optional, Any, NewType, Dict, AsyncContextManager, Protocol,
+                    Callable, Coroutine, Union)
 
 from dataclasses import dataclass, field
+
+from koder_utils import ICloseOnExit
 
 USER_NAME = 'rpc_client'
 logger = logging.getLogger('aiorpc')
@@ -115,3 +118,62 @@ class ZlibStreamDecompressor(IReadableAsync):
 
         self.eof = True
         return curr + self.decompressor.flush()
+
+
+ErrCode = NewType('ErrCode', int)
+
+
+class CloseRequest(Exception):
+    pass
+
+
+class RPCServerFailure(Exception):
+    pass
+
+
+class ConnectionFailed(Exception):
+    pass
+
+
+class ConnectionClosed(Exception):
+    pass
+
+
+class RPCStreamError(Exception):
+    pass
+
+
+class AsyncTransportClient(ICloseOnExit):
+    multiplexed: bool
+
+    @abc.abstractmethod
+    def __str__(self) -> str:
+        pass
+
+    @abc.abstractmethod
+    async def get_settings(self) -> Dict[str, Any]:
+        pass
+
+    @abc.abstractmethod
+    def make_request(self, data: AsyncIterable[bytes]) -> AsyncContextManager[AsyncIterable[bytes]]:
+        pass
+
+
+class AsyncTransportServer(Protocol):
+    def __str__(self) -> str:
+        ...
+
+    async def serve_forever(self) -> None:
+        ...
+
+    async def close(self):
+        ...
+
+    async def start_listener(self) -> None:
+        ...
+
+
+MakeServer = Callable[[...], AsyncTransportServer]
+ProcessRequest = Callable[[AsyncIterable[bytes]],
+                          Coroutine[Any, Any, Tuple[ErrCode, Union[None, bytes, AsyncIterable[bytes]]]]]
+
