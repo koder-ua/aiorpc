@@ -2,7 +2,7 @@ import contextlib
 from pathlib import Path
 from typing import Dict, AsyncIterator, Any
 
-from .common import ConnectionClosed
+from .common import ConnectionClosed, get_key_enc
 from .client import IAOIRPCNode, ConnectionPool, check_nodes, make_aiorpc_conn
 from .plugins import HistoricCollectionConfig, HistoricCollectionStatus
 from .server import configure, start_rpc_server
