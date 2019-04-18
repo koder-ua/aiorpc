@@ -14,6 +14,7 @@ from .common import IReadableAsync, RPCStreamError
 
 EOD_MARKER = b'\x00'
 CUSTOM_TYPE_KEY = '__custom__type_658aaae5-6216-4fe0-8483-d51cf21a6ba5'
+NO_PROCESS_KEY = '__custom__type_67dc910b-c892-4a3c-a7d1-df7ebb0b9a02'
 STREAM_TYPE = 'binary_stream'
 BYTES_TYPE = 'bytes'
 EXCEPTION = 'exceptions'
@@ -74,11 +75,10 @@ class IBlockStream(metaclass=abc.ABCMeta):
 # transforming data into serializable types - basic types, lists, dicts of basic types
 
 
-def prepare_for_serialization(args: List, kwargs: Dict) -> Tuple[Dict[str, Any], Optional[IReadableAsync]]:
+def prepare_for_serialization(params: Dict[str, Any]) -> Tuple[Dict[str, Any], Optional[IReadableAsync]]:
     streams: List[IReadableAsync] = []
-    p_args = do_prepare_for_serialization(args, streams)
-    p_kwargs = do_prepare_for_serialization(kwargs, streams)
-    return {'args': p_args, 'kwargs': p_kwargs}, None if streams == [] else streams[0]
+    params = do_prepare_for_serialization(params, streams)
+    return params, None if streams == [] else streams[0]
 
 
 def do_prepare_for_serialization(val: Any, streams: List[IReadableAsync]) -> Any:
@@ -121,24 +121,11 @@ def do_prepare_for_serialization(val: Any, streams: List[IReadableAsync]) -> Any
     raise TypeError(f"Can't serialize value of type {vt}")
 
 
-def after_deserialization(data: Dict[str, Any], stream: Any) -> Tuple[str, List, Dict, bool]:
-    args = data.pop('args')
-    assert type(args) is list
-
-    name = data.pop('name')
-    assert isinstance(name, str)
-
-    kwargs = data.pop('kwargs')
-    assert type(kwargs) is dict
-    assert all(isinstance(key, str) for key in kwargs)
-
+def after_deserialization(data: Dict[str, Any], stream: Any) -> Tuple[Dict, bool]:
     streams = [stream]
-    args = do_after_deserialization(args, streams)
-    assert isinstance(args, list)
-    kwargs = do_after_deserialization(kwargs, streams)
-    assert isinstance(kwargs, dict)
-    assert all(isinstance(key, str) for key in kwargs)
-    return name, args, kwargs, streams == []
+    params = do_after_deserialization(data, streams)
+    assert isinstance(params, Dict)
+    return params, streams == []
 
 
 async def yield_bytes_from_binary(iter: AsyncIterator[Tuple[BlockType, bytes]]) -> AsyncIterator[bytes]:
@@ -276,9 +263,16 @@ async def serialize(name: str,
                     kwargs: Dict[str, Any],
                     serializer: ISerializer,
                     bstream: IBlockStream) -> AsyncIterator[bytes]:
-    jargs, maybe_stream = prepare_for_serialization(args, kwargs)
-    jargs['name'] = name
-    serialized_args = serializer.pack(jargs)
+    params = {"args": args, "kwargs": kwargs, "name": name, NO_PROCESS_KEY: ""}
+    try:
+        serialized_args = serializer.pack(params)
+        maybe_stream = None
+    except TypeError:
+        del params[NO_PROCESS_KEY]
+        jargs, maybe_stream = prepare_for_serialization(params)
+        serialized_args = serializer.pack(jargs)
+        assert NO_PROCESS_KEY.encode() not in serialized_args
+
     yield bstream.make_block_header(BlockType.serialized, serialized_args) + serialized_args
     if maybe_stream is not None:
         async for data in maybe_stream:
@@ -302,10 +296,20 @@ async def deserialize(data_stream: AsyncIterable[bytes],
         raise ValueError("No data provided in responce")
 
     if tp != BlockType.serialized:
-        raise RPCStreamError(f"Get block type of {tp.name} instead of serialized")
+        raise RPCStreamError(f"Get block type of {tp.name} instead of json")
 
     unpacked = serializer.unpack(data)
-    name, args, kwargs, use_stream = after_deserialization(unpacked, blocks_iter)
+    if NO_PROCESS_KEY in unpacked:
+        params = unpacked
+        del unpacked[NO_PROCESS_KEY]
+        use_stream = False
+    else:
+        params, use_stream = after_deserialization(unpacked, blocks_iter)
+
+    name = params.pop('name')
+    args = params.pop('args')
+    kwargs = params.pop('kwargs')
+    assert not params, f"Extra data left {params}"
 
     if use_stream:
         if not allow_streamed:

@@ -96,3 +96,10 @@ def expose_type(tp: Type[T],
             unpack = default_unpack(tp)
     exposed_types[f"{tp.__module__}::{tp.__name__}"] = RPCClass(pack, unpack)
     return tp
+
+
+def configure(**vals):
+    for name, val in vals.items():
+        tp, var = ALL_CONFIG_VARS[name]
+        assert isinstance(val, tp), f"Value for {name} should have type {tp.__name__}, not {type(val).__name__}"
+        var.set(val)

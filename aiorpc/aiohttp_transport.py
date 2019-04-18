@@ -20,8 +20,9 @@ GET_SETTINGS_HEADER = "ASIO-RPC-GET-SERVER-SETTINGS"
 
 @dataclass
 class AIOHttpTransportClient(AsyncTransportClient):
-    base_url: str
+    node: Optional[str]
     api_key: str
+    url: Optional[str] = None
     ssl_cert: Optional[Path] = None
     user: str = USER_NAME
     headers: Optional[Dict[str, str]] = None
@@ -38,8 +39,16 @@ class AIOHttpTransportClient(AsyncTransportClient):
     multiplexed = False
 
     def __post_init__(self) -> None:
-        self.rpc_url = self.base_url if re.match(self.base_url, "http[s]://") else \
-            f"https://{self.base_url}:{self.port}{self.rpc_path}"
+        if self.url is None and self.node is None:
+            raise ValueError("At least 'url' or 'node' params must be provided")
+        if self.url is not None and self.node is not None:
+            raise ValueError("Only one from 'url' and 'node' params must be provided")
+
+        if self.node:
+            self.rpc_url = f"https://{self.node}:{self.port}{self.rpc_path}"
+        else:
+            self.rpc_url = cast(str, self.url)
+
         self.http_conn = ClientSession()
         if self.ssl_cert:
             self.ssl_context: Optional[ssl.SSLContext] = ssl.create_default_context(cadata=self.ssl_cert.open().read())
@@ -67,13 +76,15 @@ class AIOHttpTransportClient(AsyncTransportClient):
 
     @contextlib.asynccontextmanager   # type: ignore
     async def make_request(self, data: Union[bytes, AsyncIterable[bytes]],
-                           headers: Dict[str, str] = None) -> AsyncIterable[AsyncIterable[bytes]]:
+                           headers: Dict[str, str] = None,
+                           timeout: Optional[float] = None) -> AsyncIterable[AsyncIterable[bytes]]:
 
         req_headers = self.headers if self.headers else {}
         if headers:
             req_headers.update(headers)
 
-        async with self.http_conn.post(self.rpc_url, **self.post_params, data=data, headers=headers) as resp:
+        async with self.http_conn.post(self.rpc_url, **self.post_params, data=data,
+                                       headers=headers, timeout=timeout) as resp:
             yield resp.content.iter_chunked(DEFAULT_HTTP_CHUNK)
 
 

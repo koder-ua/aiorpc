@@ -7,7 +7,7 @@ from aiohttp import web, BasicAuth
 
 from . import rpc
 from .aiohttp_transport import AIOHttpTransportServer
-from .plugins_api import ALL_CONFIG_VARS, exposed, exposed_async, on_server_startup, on_server_shutdown
+from .plugins_api import exposed, exposed_async, on_server_startup, on_server_shutdown
 from .common import USER_NAME, encrypt_key, logger, ErrCode
 
 
@@ -54,13 +54,6 @@ async def handle_rpc(input_data: AsyncIterable[bytes], serializer: rpc.ISerializ
     except:
         logger.exception("During send body")
         raise
-
-
-def configure(**vals):
-    for name, val in vals.items():
-        tp, var = ALL_CONFIG_VARS[name]
-        assert isinstance(val, tp), f"Value for {name} should have type {tp.__name__}, not {type(val).__name__}"
-        var.set(val)
 
 
 def start_rpc_server(**kwargs) -> None:

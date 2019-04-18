@@ -1,29 +1,36 @@
 import contextlib
 from pathlib import Path
-from typing import Dict, AsyncIterator, Any
+from typing import Dict, AsyncIterator, Any, Optional, List
 
 from .common import ConnectionClosed, get_key_enc
-from .client import IAOIRPCNode, ConnectionPool, check_nodes, make_aiorpc_conn
+from .client import IAOIRPCNode, ConnectionPool, iter_unreachable, make_aiorpc_conn
 from .plugins import HistoricCollectionConfig, HistoricCollectionStatus
-from .server import configure, start_rpc_server
+from .plugins_api import configure
 from .aiohttp_transport import AIOHttpTransportClient
+from .server import start_rpc_server
 
 
 def get_http_connection_pool(ssl_certs: Dict[str, Path],
                              api_key: str,
                              max_conn_per_node: int,
+                             max_conn_total: int = None,
                              **extra) -> ConnectionPool:
+    """Can't use aiohttp connection pool, as need to set per-host ssl certificate"""
     params: Dict[str, Dict[str, Any]] = {}
-    for host, ssl_cert in ssl_certs.items():
-        params[host] = {'ssl_cert': ssl_cert, 'api_key': api_key, 'base_url': host}
-        params[host].update(extra)
-    return ConnectionPool(params, transport_cls=AIOHttpTransportClient, max_conn_per_node=max_conn_per_node)
+    for node, ssl_cert in ssl_certs.items():
+        params[node] = {'ssl_cert': ssl_cert, 'api_key': api_key, 'node': node}
+        params[node].update(extra)
+    return ConnectionPool(params,
+                          transport_cls=AIOHttpTransportClient,
+                          max_conn_per_node=max_conn_per_node,
+                          max_conn_total=max_conn_total)
 
 
 @contextlib.asynccontextmanager
-async def connect_http(node: str, ssl_cert: Path, api_key: str, **extra) -> AsyncIterator[IAOIRPCNode]:
+async def connect_http(*, node: Optional[str], ssl_cert: Path, api_key: str,
+                       url: Optional[str] = None, **extra) -> AsyncIterator[IAOIRPCNode]:
     params = extra
-    params.update({"base_url": node, "api_key": api_key, "ssl_cert": ssl_cert})
+    params.update({"url": url, "node": node, "api_key": api_key, "ssl_cert": ssl_cert})
     node = await make_aiorpc_conn(AIOHttpTransportClient(**params))
     await node.__aenter__()  # type: ignore
     try:

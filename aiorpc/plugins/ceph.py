@@ -161,7 +161,7 @@ class DumpHistoric(Recorder):
                  record_file: RecordFile, packer: IPacker) -> None:
         Recorder.__init__(self, evt, cli, cfg, record_file, packer)
         self.osd_ids = self.cfg.osd_ids.copy()
-        self.not_inited_osd: Set[int] = set()
+        self.not_inited_osd: Set[int] = set(self.cfg.osd_ids)
         self.pools_map: Dict[int, Tuple[str, int]] = {}
         self.pools_map_no_name: Dict[int, int] = {}
         self.last_time_ops: Dict[int, Set[str]] = defaultdict(set)
@@ -374,6 +374,7 @@ class CephHistoricDumper:
                 await recorder.cycle()
                 next_run = time.time() + timeout
         except asyncio.CancelledError:
+            logger.warning(f"Loop for {recorder.__class__.__name__} canceled")
             raise
         except Exception:
             logger.exception(f"In loop {recorder.__class__.__name__}")
@@ -386,7 +387,7 @@ dumper: Optional[CephHistoricDumper] = None
 
 
 @expose
-async def start_historic_collection(historic_config: HistoricCollectionConfig) -> None:
+async def start_historic_collection(historic_config: HistoricCollectionConfig, save: bool = True) -> None:
     global dumper
     assert dumper is None, "Collection already running"
 
@@ -401,9 +402,10 @@ async def start_historic_collection(historic_config: HistoricCollectionConfig) -
     dumper.start()
     cfg_path = historic_ops_cfg_file()
 
-    with cfg_path.open("w") as fd:
-        logger.exception(f"Storing historic config to {cfg_path}")
-        fd.write(json.dumps(historic_config.__dict__))
+    if save:
+        with cfg_path.open("w") as fd:
+            logger.info(f"Storing historic config to {cfg_path}")
+            fd.write(json.dumps(historic_config.__dict__))
 
 
 @expose
@@ -470,7 +472,7 @@ def get_collected_historic_data(offset: int, size: int = None) -> IReadableAsync
 async def restore_collection(_: Any):
     cfg_path = historic_ops_cfg_file()
 
-    if cfg_path.exists:
+    if cfg_path.exists():
         try:
             historic_config_dct = json.load(cfg_path.open())
             historic_config = HistoricCollectionConfig(**historic_config_dct)
@@ -478,7 +480,7 @@ async def restore_collection(_: Any):
             logger.exception(f"Can't load historic config from {cfg_path}")
             return
 
-        await start_historic_collection(historic_config)
+        await start_historic_collection(historic_config, save=False)
 
 
 @register_shutdown

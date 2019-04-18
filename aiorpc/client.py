@@ -8,7 +8,7 @@ from io import BytesIO
 from pathlib import Path
 from dataclasses import dataclass, field
 from typing import (Any, Dict, List, Tuple, Union, AsyncIterator, BinaryIO, NamedTuple, cast, Iterable, Optional,
-                    Callable, AsyncContextManager)
+                    Callable)
 
 from koder_utils import CMDResult, CmdType, IAsyncNode, AnyPath, BaseConnectionPool
 
@@ -65,8 +65,7 @@ class IAOIRPCNode(IAsyncNode):
     async def tail_file(self, path: AnyPath, size: int) -> AsyncIterator[bytes]:
         assert self.proxy, "Not connected"
         async with self.proxy.streamed.fs.tail(str(path), size) as block_iter:
-            async for tp, chunk in block_iter:
-                assert tp == BlockType.binary
+            async for chunk in block_iter:
                 yield chunk
 
     async def iter_file(self, path: AnyPath, compress: bool = True) -> AsyncIterator[bytes]:
@@ -129,8 +128,7 @@ class IAOIRPCNode(IAsyncNode):
     async def collect_historic(self, start: int = 0, size: int = 0) -> AsyncIterator[bytes]:
         assert self.proxy, "Not connected"
         async with self.proxy.streamed.ceph.get_collected_historic_data(start, size) as data_iter:
-            async for tp, chunk in data_iter:
-                assert tp == BlockType.binary
+            async for chunk in data_iter:
                 yield chunk
 
     async def get_sock_count(self, pid: int) -> int:
@@ -142,7 +140,7 @@ class IAOIRPCNode(IAsyncNode):
 
         assert self.proxy, "Not connected"
         dev = (await self.proxy.fs.get_dev_for_file(fname)).decode()
-        assert dev.startswith('/dev'), "{!r} is not starts with /dev".format(dev)
+        assert dev.startswith('/dev'), f"{dev!r} is not starts with /dev"
         root_dev = dev = dev.strip()
         rr = re.match('^(/dev/[shv]d.*?)\\d+', root_dev)
         if rr:
@@ -163,14 +161,15 @@ class ConnectionPool(BaseConnectionPool[IAOIRPCNode]):
     def __init__(self,
                  conn_params: Dict[str, Dict[str, Any]],
                  max_conn_per_node: int,
+                 max_conn_total: int,
                  transport_cls: Callable[..., AsyncTransportClient]) -> None:
-        BaseConnectionPool.__init__(self, max_conn_per_node=max_conn_per_node)
-        self.conn_urls = conn_params
+        BaseConnectionPool.__init__(self, max_conn_per_node=max_conn_per_node, max_conn_total=max_conn_total)
+        self.conn_params = conn_params
         self.transport_cls = transport_cls
 
     async def rpc_connect(self, conn_addr: str) -> IAOIRPCNode:
         """Connect to nodes and fill Node object with basic node info: ips and hostname"""
-        transport: AsyncTransportClient = self.transport_cls(**self.conn_urls[conn_addr])
+        transport: AsyncTransportClient = self.transport_cls(**self.conn_params[conn_addr])
         conn = await make_aiorpc_conn(transport)
         await conn.__aenter__()
         return conn
@@ -202,19 +201,14 @@ async def wait_ready(transport_cls: Callable[..., AsyncTransportClient],
         raise ConnectionFailed(f"Can't connect")
 
 
-async def check_nodes(inventory: List[str], pool: ConnectionPool) -> Tuple[List[str], List[str]]:
-    failed = []
-    good_hosts = []
+async def iter_unreachable(inventory: List[str], pool: ConnectionPool) -> AsyncIterator[str]:
     for hostname in inventory:
         try:
             async with pool.connection(hostname) as conn:
-                if "test" == await conn.conn.sys.ping("test"):
-                    good_hosts.append(hostname)
-                else:
-                    failed.append(hostname)
-        except:
-            failed.append(hostname)
-    return good_hosts, failed
+                assert "test" == await conn.proxy.sys.ping("test")
+        except Exception as exc:
+            print(exc)
+            yield hostname
 
 
 # ----------- EXPERIMENTAL ---------------------------------------------------------------------------------------------

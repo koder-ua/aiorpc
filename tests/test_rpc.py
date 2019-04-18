@@ -55,14 +55,14 @@ async def start_server() -> Iterable[None]:
 @pytest.mark.asyncio
 async def test_connect():
     async with start_server():
-        async with connect_http(server_addr, ssl_cert=SSL_CERT, api_key=API_KEY, port=PORT) as conn:
+        async with connect_http(node=server_addr, ssl_cert=SSL_CERT, api_key=API_KEY, port=PORT) as conn:
             pass
 
 
 @pytest.mark.asyncio
 async def test_connect():
     async with start_server():
-        async with connect_http(server_addr, ssl_cert=SSL_CERT, api_key=API_KEY, port=PORT) as conn:
+        async with connect_http(node=server_addr, ssl_cert=SSL_CERT, api_key=API_KEY, port=PORT) as conn:
             assert await conn.proxy.sys.ping("pong") == "pong"
 
 
@@ -81,7 +81,7 @@ async def conn_pool_2():
 @pytest.mark.asyncio
 async def test_read():
     async with start_server():
-        async with connect_http(server_addr, ssl_cert=SSL_CERT, api_key=API_KEY, port=PORT) as conn:
+        async with connect_http(node=server_addr, ssl_cert=SSL_CERT, api_key=API_KEY, port=PORT) as conn:
             expected_data = SSL_CERT.open("rb").read()
 
             data = await conn.read(SSL_CERT, compress=False)
@@ -112,7 +112,7 @@ async def test_read():
 @pytest.mark.asyncio
 async def test_read_large():
     async with start_server():
-        async with connect_http(server_addr, ssl_cert=SSL_CERT, api_key=API_KEY, port=PORT) as conn:
+        async with connect_http(node=server_addr, ssl_cert=SSL_CERT, api_key=API_KEY, port=PORT) as conn:
             with open(LARGE_FILE_PATH, 'rb') as fd:
                 async for chunk in conn.iter_file(LARGE_FILE_PATH, compress=False):
                     assert fd.read(len(chunk)) == chunk
@@ -124,7 +124,7 @@ async def test_read_large():
 async def test_write():
     data = b'-' * 100_000
     async with start_server():
-        async with connect_http(server_addr, ssl_cert=SSL_CERT, api_key=API_KEY, port=PORT) as conn:
+        async with connect_http(node=server_addr, ssl_cert=SSL_CERT, api_key=API_KEY, port=PORT) as conn:
             with tempfile.NamedTemporaryFile() as fl:
                 await conn.write(fl.name, data, compress=False)
                 assert data == fl.file.read()
@@ -166,7 +166,7 @@ async def test_write_temp():
     tmpdirlist = os.listdir('/tmp')
 
     async with start_server():
-        async with connect_http(server_addr, ssl_cert=SSL_CERT, api_key=API_KEY, port=PORT) as conn:
+        async with connect_http(node=server_addr, ssl_cert=SSL_CERT, api_key=API_KEY, port=PORT) as conn:
             fpath = await conn.write_tmp(data, compress=False)
 
     assert fpath.open('rb').read() == data
@@ -178,7 +178,7 @@ async def test_write_temp():
 @pytest.mark.asyncio
 async def test_write_large():
     async with start_server():
-        async with connect_http(server_addr, ssl_cert=SSL_CERT, api_key=API_KEY, port=PORT) as conn:
+        async with connect_http(node=server_addr, ssl_cert=SSL_CERT, api_key=API_KEY, port=PORT) as conn:
             with open(LARGE_FILE_PATH, 'rb') as src:
                 with tempfile.NamedTemporaryFile() as dst:
                     await conn.write(dst.name, src, compress=False)
@@ -201,7 +201,7 @@ async def test_fs_utils():
     assert not Path(not_exists).exists()
 
     async with start_server():
-        async with connect_http(server_addr, ssl_cert=SSL_CERT, api_key=API_KEY, port=PORT) as conn:
+        async with connect_http(node=server_addr, ssl_cert=SSL_CERT, api_key=API_KEY, port=PORT) as conn:
             assert await conn.exists(exists)
             assert not (await conn.exists(not_exists))
 
@@ -262,7 +262,7 @@ async def test_run():
     assert expected_res.returncode == 0
 
     async with start_server():
-        async with connect_http(server_addr, ssl_cert=SSL_CERT, api_key=API_KEY, port=PORT) as conn:
+        async with connect_http(node=server_addr, ssl_cert=SSL_CERT, api_key=API_KEY, port=PORT) as conn:
             for cmd in ['ls -1 /', ['ls', '-1', '/'], ['ls', '-1', Path('/')]]:
                 ps_result = await conn.run(cmd)
                 assert ps_result.returncode == 0
@@ -286,7 +286,7 @@ async def test_run_issues():
     not_existed_exe = 'this-cmd-does-not-exists-1241414515415'
     fails_with_code_1 = 'exit 1'
     async with start_server():
-        async with connect_http(server_addr, ssl_cert=SSL_CERT, api_key=API_KEY, port=PORT) as conn:
+        async with connect_http(node=server_addr, ssl_cert=SSL_CERT, api_key=API_KEY, port=PORT) as conn:
             with pytest.raises(FileNotFoundError):
                 await conn.run([not_existed_exe])
 
@@ -304,7 +304,7 @@ async def test_run_input():
     cmd = 'ls -1 /'
 
     async with start_server():
-        async with connect_http(server_addr, ssl_cert=SSL_CERT, api_key=API_KEY, port=PORT) as conn:
+        async with connect_http(node=server_addr, ssl_cert=SSL_CERT, api_key=API_KEY, port=PORT) as conn:
             for proc in ["bash", ["bash"]]:
                 ps_result = await conn.run(proc, input_data=cmd.encode())
                 assert ps_result.returncode == 0
@@ -316,7 +316,7 @@ async def test_run_input():
 @pytest.mark.asyncio
 async def test_run_timeout():
     async with start_server():
-        async with connect_http(server_addr, ssl_cert=SSL_CERT, api_key=API_KEY, port=PORT) as conn:
+        async with connect_http(node=server_addr, ssl_cert=SSL_CERT, api_key=API_KEY, port=PORT) as conn:
             for proc in [["sleep", "3600"], "sleep 3600"]:
                 coro = conn.run(proc, timeout=0.5, term_timeout=0.1)
                 done, not_done = await asyncio.wait([coro], timeout=2)
@@ -349,7 +349,7 @@ async def test_large_transfer(conn_pool_32: ConnectionPool):
 @pytest.mark.asyncio
 async def test_python27():
     async with start_server():
-        async with connect_http(server_addr, ssl_cert=SSL_CERT, api_key=API_KEY, port=PORT) as conn:
+        async with connect_http(node=server_addr, ssl_cert=SSL_CERT, api_key=API_KEY, port=PORT) as conn:
             for proc in [["python2.7", "-c", "import sys; print sys.version_info"],
                          "python2.7 -c 'import sys; print sys.version_info'"]:
 
@@ -365,7 +365,7 @@ async def test_run_environ():
     var_name = "TEST_VAR"
     var_val = "TEST_VALUE"
     async with start_server():
-        async with connect_http(server_addr, ssl_cert=SSL_CERT, api_key=API_KEY, port=PORT) as conn:
+        async with connect_http(node=server_addr, ssl_cert=SSL_CERT, api_key=API_KEY, port=PORT) as conn:
             env = await conn.proxy.cli.environ()
 
             assert var_name not in env
@@ -412,7 +412,7 @@ async def test_other_fs():
     mounts = get_mounts()
 
     async with start_server():
-        async with connect_http(server_addr, ssl_cert=SSL_CERT, api_key=API_KEY, port=PORT) as conn:
+        async with connect_http(node=server_addr, ssl_cert=SSL_CERT, api_key=API_KEY, port=PORT) as conn:
             with tempfile.NamedTemporaryFile() as fl:
                 expected_device, expected_partition = mounts[str(find_mount_point(Path(fl.name)))]
                 device, partition = await conn.proxy.fs.get_dev_and_partition(fl.name)
@@ -426,3 +426,17 @@ async def test_other_fs():
 
                 for dev_name in (await conn.proxy.fs.get_block_devs_info()):
                     assert Path(f"/dev/{dev_name}").is_block_device()
+
+
+@pytest.mark.asyncio
+async def test_file_tail():
+
+    async with start_server():
+        async with connect_http(node=server_addr, ssl_cert=SSL_CERT, api_key=API_KEY, port=PORT) as conn:
+            with tempfile.NamedTemporaryFile() as fl:
+                for i in range(1000):
+                    fl.write(f"{i}\n")
+                fl.flush()
+
+                fl.seek(1000, os.SEEK_END)
+                assert fl.read() == await conn.tail_file(fl.name, 1000)
