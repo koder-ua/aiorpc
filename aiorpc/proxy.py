@@ -1,6 +1,6 @@
 import contextlib
 from dataclasses import dataclass, field
-from typing import Dict, Any, List, AsyncIterator, Sequence, Optional, AsyncIterable, AsyncContextManager, Iterator
+from typing import Dict, Any, List, Sequence, Optional, AsyncIterable, AsyncContextManager, Iterator
 
 from .common import AsyncTransportClient
 from .rpc import deserialize, CALL_FAILED, CALL_SUCCEEDED, serialize, ISerializer, IBlockStream
