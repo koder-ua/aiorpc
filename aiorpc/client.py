@@ -45,7 +45,7 @@ class StatRes(NamedTuple):
 
 
 @dataclass
-class IAOIRPCNode(IAsyncNode):
+class IAIORPCNode(IAsyncNode):
     conn: AsyncClientConnection
     proxy: Optional[Proxy] = field(default=None, init=False)
 
@@ -148,16 +148,16 @@ class IAOIRPCNode(IAsyncNode):
         return root_dev, dev
 
 
-async def make_aiorpc_conn(transport: AsyncTransportClient) -> IAOIRPCNode:
+async def make_aiorpc_conn(transport: AsyncTransportClient) -> IAIORPCNode:
     await transport.connect()
     params = await transport.get_settings()
     assert params['serializer'] == 'json', f"Serializer {params['serializer']} not supported"
     assert params['bstream'] == 'simple', f"Blocks stream {params['bstream']} not supported"
     base_rpc = AsyncClientConnection(transport, serializer=JsonSerializer(), bstream=SimpleBlockStream())
-    return IAOIRPCNode(base_rpc)
+    return IAIORPCNode(base_rpc)
 
 
-class ConnectionPool(BaseConnectionPool[IAOIRPCNode]):
+class ConnectionPool(BaseConnectionPool[IAIORPCNode]):
     def __init__(self,
                  conn_params: Dict[str, Dict[str, Any]],
                  max_conn_per_node: int,
@@ -167,14 +167,14 @@ class ConnectionPool(BaseConnectionPool[IAOIRPCNode]):
         self.conn_params = conn_params
         self.transport_cls = transport_cls
 
-    async def rpc_connect(self, conn_addr: str) -> IAOIRPCNode:
+    async def rpc_connect(self, conn_addr: str) -> IAIORPCNode:
         """Connect to nodes and fill Node object with basic node info: ips and hostname"""
         transport: AsyncTransportClient = self.transport_cls(**self.conn_params[conn_addr])
         conn = await make_aiorpc_conn(transport)
         await conn.__aenter__()
         return conn
 
-    async def rpc_disconnect(self, conn: IAOIRPCNode) -> None:
+    async def rpc_disconnect(self, conn: IAIORPCNode) -> None:
         await conn.__aexit__(None, None, None)
 
 
@@ -241,7 +241,7 @@ class WriteFileLike(IReadableAsync):
         await self._q.put(data)
 
 
-class IAgentRPCNodeWithRemoteFiles(IAOIRPCNode):
+class IAgentRPCNodeWithRemoteFiles(IAIORPCNode):
     async def open(self, path: AnyPath, mode: str = "wb", compress: bool = True) -> Union[ReadFileLike, WriteFileLike]:
         assert self.proxy, "Not connected"
         if mode == "wb":

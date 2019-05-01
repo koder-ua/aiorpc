@@ -1,9 +1,9 @@
 import contextlib
 from pathlib import Path
-from typing import Dict, AsyncIterator, Any, Optional, List
+from typing import Dict, AsyncIterator, Any, Optional
 
 from .common import ConnectionClosed, get_key_enc
-from .client import IAOIRPCNode, ConnectionPool, iter_unreachable, make_aiorpc_conn
+from .client import IAIORPCNode, ConnectionPool, iter_unreachable, make_aiorpc_conn
 from .plugins import HistoricCollectionConfig, HistoricCollectionStatus
 from .plugins_api import configure
 from .aiohttp_transport import AIOHttpTransportClient
@@ -28,7 +28,7 @@ def get_http_connection_pool(ssl_certs: Dict[str, Path],
 
 @contextlib.asynccontextmanager
 async def connect_http(*, node: Optional[str], ssl_cert: Path, api_key: str,
-                       url: Optional[str] = None, **extra) -> AsyncIterator[IAOIRPCNode]:
+                       url: Optional[str] = None, **extra) -> AsyncIterator[IAIORPCNode]:
     params = extra
     params.update({"url": url, "node": node, "api_key": api_key, "ssl_cert": ssl_cert})
     node = await make_aiorpc_conn(AIOHttpTransportClient(**params))
