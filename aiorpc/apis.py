@@ -1,17 +1,26 @@
+from __future__ import annotations
+
 import abc
+import ssl
+import zlib
 import json
 import base64
 import struct
 import hashlib
+import inspect
 import subprocess
 from enum import Enum
-
-from typing import Any, Dict, List, Tuple, Optional, NamedTuple, AsyncIterator, AsyncIterable
-
-from .plugins_api import exposed_types
-from .common import IReadableAsync, RPCStreamError
+from typing import (AsyncIterable, BinaryIO, NewType, AsyncContextManager, Union, Awaitable, Callable, Any, Optional,
+                    TypeVar, Dict, Type, Generic, Coroutine, Tuple, List, NamedTuple, AsyncIterator)
+from dataclasses import dataclass, field
 
 
+from koder_utils import ICloseOnExit
+
+
+USER_NAME = 'rpc_client'
+DEFAULT_FILE_CHUNK = 1 << 20
+DEFAULT_COMPRESSOR_CHUNK = 1 << 16
 EOD_MARKER = b'\x00'
 CUSTOM_TYPE_KEY = '__custom__type_658aaae5-6216-4fe0-8483-d51cf21a6ba5'
 NO_PROCESS_KEY = '__custom__type_67dc910b-c892-4a3c-a7d1-df7ebb0b9a02'
@@ -68,6 +77,279 @@ class IBlockStream(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     async def yield_blocks(self, data_stream: AsyncIterable[bytes]) -> AsyncIterator[Tuple[BlockType, bytes]]:
         ...
+
+
+def get_key_enc() -> Tuple[str, str]:
+    key = "".join((f"{i:02X}" for i in ssl.RAND_bytes(16)))
+    return key, encrypt_key(key)
+
+
+def encrypt_key(key: str, salt: str = None) -> str:
+    if salt is None:
+        salt = "".join(f"{i:02X}" for i in ssl.RAND_bytes(16))
+    return hashlib.sha512(key.encode('utf-8') + salt.encode('utf8')).hexdigest() + "::" + salt
+
+
+class IReadableAsync(AsyncIterable[bytes]):
+    @abc.abstractmethod
+    async def readany(self) -> bytes:
+        pass
+
+    def __aiter__(self: T) -> T:
+        return self
+
+    async def __anext__(self) -> bytes:
+        res = await self.readany()
+        if not res:
+            raise StopAsyncIteration()
+        return res
+
+
+@dataclass
+class ChunkedFile(IReadableAsync):
+    fd: BinaryIO
+    chunk: int = DEFAULT_FILE_CHUNK
+    closed: bool = field(default=False, init=False)
+    till_offset: Optional[int] = None
+    close_at_the_end: bool = False
+
+    def done(self):
+        if self.close_at_the_end:
+            self.fd.close()
+        self.closed = True
+
+    async def readany(self) -> bytes:
+        if self.closed:
+            return b""
+
+        if self.till_offset:
+            offset = self.fd.tell()
+            if offset >= self.till_offset:
+                self.done()
+                return b""
+            max_read = min(offset - self.till_offset, self.chunk)
+        else:
+            max_read = self.chunk
+
+        data = self.fd.read(max_read)
+        if not data:
+            self.done()
+        return data
+
+
+@dataclass
+class ZlibStreamCompressor(IReadableAsync):
+    fd: IReadableAsync
+    min_chunk: int = DEFAULT_COMPRESSOR_CHUNK
+    compressor: Any = field(default_factory=zlib.compressobj, init=False)
+    eof: bool = field(default=False, init=False)
+
+    async def readany(self) -> bytes:
+        if self.eof:
+            return b''
+
+        curr = b''
+        async for chunk in self.fd:
+            assert chunk
+            curr += self.compressor.compress(chunk)
+            if len(curr) >= self.min_chunk:
+                return curr
+
+        self.eof = True
+        return curr + self.compressor.flush()
+
+
+@dataclass
+class ZlibStreamDecompressor(IReadableAsync):
+    fd: IReadableAsync
+    min_chunk: int = DEFAULT_COMPRESSOR_CHUNK
+    decompressor: Any = field(default_factory=zlib.decompressobj, init=False)
+    eof: bool = field(default=False, init=False)
+
+    async def readany(self) -> bytes:
+        if self.eof:
+            return b''
+
+        curr = b''
+        async for chunk in self.fd:
+            assert chunk
+            curr += self.decompressor.decompress(chunk)
+            if len(curr) >= self.min_chunk:
+                return curr
+
+        self.eof = True
+        return curr + self.decompressor.flush()
+
+
+ErrCode = NewType('ErrCode', int)
+
+
+class CloseRequest(Exception):
+    pass
+
+
+class RPCServerFailure(Exception):
+    pass
+
+
+class ConnectionFailed(Exception):
+    pass
+
+
+class ConnectionClosed(Exception):
+    pass
+
+
+class RPCStreamError(Exception):
+    pass
+
+
+class AsyncTransportClient(ICloseOnExit):
+    multiplexed: bool
+    is_connected: bool
+
+    @abc.abstractmethod
+    def __str__(self) -> str:
+        pass
+
+    @abc.abstractmethod
+    async def get_settings(self) -> Dict[str, Any]:
+        pass
+
+    @abc.abstractmethod
+    def make_request(self, data: AsyncIterable[bytes]) -> AsyncContextManager[AsyncIterable[bytes]]:
+        pass
+
+
+class AsyncTransportServer(metaclass=abc.ABCMeta):
+    @abc.abstractmethod
+    def __str__(self) -> str:
+        pass
+
+    @abc.abstractmethod
+    async def serve_forever(self) -> None:
+        pass
+
+    @abc.abstractmethod
+    async def close(self):
+        pass
+
+    @abc.abstractmethod
+    async def start_listener(self) -> None:
+        pass
+
+
+MakeServer = Callable[..., AsyncTransportServer]
+ProcessRequest = Callable[[AsyncIterable[bytes]], Awaitable[Tuple[ErrCode, Union[None, bytes, AsyncIterable[bytes]]]]]
+
+
+def check_key(target: str, for_check: str) -> bool:
+    key, salt = target.split("::")
+    curr_password = encrypt_key(for_check, salt)
+    return curr_password == for_check
+
+
+T = TypeVar('T')
+ALL_CONFIG_VARS: Dict[str, Tuple[Type, ConfigVar]] = {}
+StartStopFunc = Callable[[Any], Coroutine[Any, Any, None]]
+
+
+class ConfigVar(Generic[T]):
+    def __init__(self, name: str, tp: Type[T]) -> None:
+        ALL_CONFIG_VARS[name] = (tp, self)
+        self.val: Optional[T] = None
+
+    def set(self, v: T) -> Optional[T]:
+        old_v = self.val
+        self.val = v
+        return old_v
+
+    def __call__(self) -> T:
+        assert self.val
+        return self.val
+
+
+def validate_name(name: str):
+    assert not name.startswith("_")
+    assert name != 'streamed'
+
+
+exposed = {}
+exposed_async = {}
+
+
+def expose_func(module: str, func: Callable):
+    validate_name(module)
+    validate_name(func.__name__)
+    name = f"{module}.{func.__name__}"
+
+    if inspect.iscoroutinefunction(func):
+        exposed_async[name] = func
+    else:
+        exposed[name] = func
+
+    return func
+
+
+on_server_startup: List[StartStopFunc] = []
+
+
+def register_startup(func: StartStopFunc) -> StartStopFunc:
+    on_server_startup.append(func)
+    return func
+
+
+on_server_shutdown: List[StartStopFunc] = []
+
+
+def register_shutdown(func: StartStopFunc) -> StartStopFunc:
+    on_server_startup.append(func)
+    return func
+
+
+@dataclass
+class RPCClass(Generic[T]):
+    pack: Callable[[T], Dict[str, Any]]
+    unpack: Callable[[Dict[str, Any]], T]
+
+
+def default_pack(val: Any) -> Dict[str, Any]:
+    return val.__dict__
+
+
+def default_unpack(tp: Type[T]) -> Callable[[Dict[str, Any]], T]:
+    def unpack_closure(attrs: Dict[str, Any]) -> T:
+        obj = tp.__new__(tp)
+        obj.__dict__.update(attrs)
+        return obj
+    return unpack_closure
+
+
+exposed_types: Dict[str, RPCClass] = {}
+
+
+def expose_type(tp: Type[T],
+                pack: Callable[[T], Dict[str, Any]] = None,
+                unpack: Callable[[Dict[str, Any]], T] = None) -> Type[T]:
+    if pack is None:
+        if hasattr(tp, "__to_json__"):
+            pack = tp.__json_reduce__  # type: ignore
+        else:
+            pack = default_pack
+    if unpack is None:
+        if hasattr(tp, "__from_json__"):
+            unpack = tp.__from_json__  # type: ignore
+        else:
+            unpack = default_unpack(tp)
+    exposed_types[f"{tp.__module__}::{tp.__name__}"] = RPCClass(pack, unpack)
+    return tp
+
+
+def configure(**vals):
+    for name, val in vals.items():
+        tp, var = ALL_CONFIG_VARS[name]
+        assert isinstance(val, tp), f"Value for {name} should have type {tp.__name__}, not {type(val).__name__}"
+        var.set(val)
 
 
 # ---- SERIALIZATION ---------------------------------------------------------------------------------------------------

@@ -1,16 +1,19 @@
-import re
 import ssl
 import json
 import contextlib
+import functools
+import http
+import traceback
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, Any, AsyncIterable, Optional, Union, Iterable, cast
+from typing import Dict, Any, Optional, Union, Iterable, cast, AsyncIterable, Tuple
 
 from aiohttp import web, BasicAuth, ClientSession
 
-from .plugins_api import StartStopFunc
-from .common import USER_NAME, encrypt_key, ProcessRequest, AsyncTransportClient
-
+from . import logger
+from .apis import (USER_NAME, check_key, ErrCode, ProcessRequest, AsyncTransportClient, StartStopFunc,
+                   exposed, exposed_async, on_server_startup, on_server_shutdown, ISerializer, IBlockStream,
+                   serialize, CALL_FAILED, CALL_SUCCEEDED, JsonSerializer, SimpleBlockStream, deserialize)
 
 PORT = 55667
 DEFAULT_HTTP_CHUNK = 1 << 16
@@ -88,12 +91,6 @@ class AIOHttpTransportClient(AsyncTransportClient):
             yield resp.content.iter_chunked(DEFAULT_HTTP_CHUNK)
 
 
-def check_key(target: str, for_check: str) -> bool:
-    key, salt = target.split("::")
-    curr_password = encrypt_key(for_check, salt)
-    return curr_password == for_check
-
-
 def basic_auth_middleware(key: str):
     @web.middleware
     async def basic_auth(request, handler):
@@ -120,8 +117,6 @@ class AIOHttpTransportServer:
     api_key_enc: str
     settings: Dict[str, Any]
     port: int = PORT
-    on_server_startup: Optional[Iterable[StartStopFunc]] = None
-    on_server_shutdown: Optional[Iterable[StartStopFunc]] = None
     rpc_path: str = '/rpc'
 
     async def handle_rpc(self, request: web.Request) -> web.StreamResponse:
@@ -145,17 +140,19 @@ class AIOHttpTransportServer:
 
         return response
 
-    def make_app(self) -> web.Application:
+    def make_app(self,
+                 startup_cbs: Iterable[StartStopFunc] = None,
+                 shutdown_cbs: Iterable[StartStopFunc]= None) -> web.Application:
         auth = basic_auth_middleware(self.api_key_enc)
         app = web.Application(middlewares=[auth], client_max_size=MAX_CONTENT_SIZE)
         app.add_routes([web.post(self.rpc_path, self.handle_rpc)])
 
-        if self.on_server_startup:
-            for func in self.on_server_startup:
+        if startup_cbs:
+            for func in startup_cbs:
                 app.on_startup.append(func)
 
-        if self.on_server_shutdown:
-            for func in self.on_server_shutdown:
+        if shutdown_cbs:
+            for func in shutdown_cbs:
                 app.on_cleanup.append(func)
 
         return app
@@ -167,11 +164,43 @@ class AIOHttpTransportServer:
         ssl_context.verify_mode = ssl.CERT_NONE
         return ssl_context
 
-    def serve_forever(self) -> None:
-        web.run_app(self.make_app(), host=self.ip, port=self.port, ssl_context=self.make_ssl_context())
+    def serve_forever(self,
+                      on_server_startup: Iterable[StartStopFunc] = None,
+                      on_server_shutdown: Iterable[StartStopFunc]= None) -> None:
+        app = self.make_app(on_server_startup, on_server_shutdown)
+        web.run_app(app, host=self.ip, port=self.port, ssl_context=self.make_ssl_context())
 
     def __str__(self) -> str:
         return f"HTTPS({self.ip}:{self.port}{self.rpc_path})"
 
     async def close(self):
         pass
+
+
+async def handle_rpc(input_data: AsyncIterable[bytes], serializer: ISerializer,
+                     bstream: IBlockStream) -> Tuple[ErrCode, Union[None, AsyncIterable[bytes]]]:
+    packers = {"serializer": serializer, "bstream": bstream}
+    try:
+        name, args, kwargs = await deserialize(input_data, allow_streamed=True, **packers)  # type: ignore
+        try:
+            if name in exposed_async:
+                res = await exposed_async[name](*args, **kwargs)
+            elif name in exposed:
+                res = exposed[name](*args, **kwargs)
+            else:
+                raise AttributeError(f"Name {name!r} not found")
+        except Exception as exc:
+            return http.HTTPStatus.OK, serialize(CALL_FAILED,  # type: ignore
+                [exc, traceback.format_exc()], {}, **packers)  # type: ignore
+        else:
+            return http.HTTPStatus.OK, serialize(CALL_SUCCEEDED, [res], {}, **packers)  # type: ignore
+    except:
+        logger.exception("During send body")
+        raise
+
+
+def start_rpc_server(**kwargs) -> None:
+    handler = functools.partial(handle_rpc, serializer=JsonSerializer(), bstream=SimpleBlockStream())
+    AIOHttpTransportServer(process_request=handler,  # type: ignore
+                           settings={"serializer": "json", "bstream": "simple"},
+                           **kwargs).serve_forever(on_server_startup, on_server_shutdown)

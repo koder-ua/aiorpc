@@ -1,0 +1,12 @@
+[Unit]
+Description=Aiorpc server
+
+[Service]
+WorkingDirectory={INSTALL}
+Environment="PYTHONUNBUFFERED=1"
+Type=simple
+ExecStart="{INSTALL}/usr/bin/python3.7" -m aiorpc server --config '{CONFIG_PATH}'
+StandardOutput=null
+
+[Install]
+WantedBy=multi-user.target

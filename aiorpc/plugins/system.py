@@ -1,6 +1,6 @@
 import functools
 
-from ..plugins_api import expose_func
+from .. import expose_func
 
 
 expose = functools.partial(expose_func, "sys")

@@ -1,0 +1,33 @@
+{
+    "version": 1,
+    "disable_existing_loggers": true,
+    "formatters": {
+        "simple": {
+            "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            "datefmt": "%H:%M:%S"
+        }
+    },
+    "handlers": {
+        "console": {
+            "level": "DEBUG",
+            "class": "logging.StreamHandler",
+            "formatter": "simple",
+            "stream": "ext://sys.stdout"
+        },
+        "persistent": {
+            "level": "INFO",
+            "class": "logging.FileHandler",
+            "formatter": "simple",
+            "filename": null
+        }
+    },
+    "loggers": {
+        "cmd":     {"level": "DEBUG", "handlers": ["console"]},
+        "storage": {"level": "DEBUG", "handlers": ["console"]},
+        "rpc":     {"level": "DEBUG", "handlers": ["console"]},
+        "cephlib": {"level": "DEBUG", "handlers": ["console"]},
+        "aiorpc":  {"level": "DEBUG", "handlers": ["console"]},
+        "aiorpc_svc": {"level": "DEBUG", "handlers": ["console"]},
+        "aiohttp.server": {"level": "DEBUG", "handlers": ["console"]}
+    }
+}

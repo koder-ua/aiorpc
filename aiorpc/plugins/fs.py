@@ -14,8 +14,7 @@ from typing import List, Optional, Dict, Any, Tuple, Iterator, Union
 
 from koder_utils import run_stdout
 
-from ..plugins_api import expose_func
-from ..common import IReadableAsync, ChunkedFile, ZlibStreamCompressor
+from .. import IReadableAsync, ChunkedFile, ZlibStreamCompressor, expose_func
 
 
 expose = functools.partial(expose_func, "fs")

@@ -1,5 +1,5 @@
 import pytest
-from aiorpc import rpc
+from aiorpc.apis import JsonSerializer, serialize, deserialize, SimpleBlockStream
 
 
 vals = [
@@ -15,8 +15,8 @@ async def test_simple_serialization():
     name = "test1"
 
     for val in vals:
-        stream = rpc.serialize(name, [val], {}, rpc.JsonSerializer(), rpc.SimpleBlockStream())
-        dname, dval, dkw = await rpc.deserialize(stream, False, rpc.JsonSerializer(), rpc.SimpleBlockStream())
+        stream = serialize(name, [val], {}, JsonSerializer(), SimpleBlockStream())
+        dname, dval, dkw = await deserialize(stream, False, JsonSerializer(), SimpleBlockStream())
         assert val == dval[0]
         assert dname == name
         assert dkw == {}
@@ -30,8 +30,8 @@ async def test_collection_serialization():
     cvals = [vals, {"a": 12, "b": 13, "": True, "5": [12, [4, [None, {" ": 2}]]]}]
 
     for val in cvals:
-        stream = rpc.serialize(name, [val], {"1": val}, rpc.JsonSerializer(), rpc.SimpleBlockStream())
-        dname, dval, dkw = await rpc.deserialize(stream, False, rpc.JsonSerializer(), rpc.SimpleBlockStream())
+        stream = serialize(name, [val], {"1": val}, JsonSerializer(), SimpleBlockStream())
+        dname, dval, dkw = await deserialize(stream, False, JsonSerializer(), SimpleBlockStream())
         assert val == dval[0]
         assert dname == name
         assert dkw == {"1": val}

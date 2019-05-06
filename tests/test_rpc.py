@@ -12,9 +12,8 @@ from typing import Iterable, Dict, Tuple, List, Any, Iterator
 import pytest
 from aiohttp.web_runner import AppRunner, TCPSite
 
-from aiorpc import connect_http, rpc, get_http_connection_pool, ConnectionPool
-from aiorpc.server import handle_rpc
-from aiorpc.aiohttp_transport import AIOHttpTransportServer
+from aiorpc import connect_http, get_http_connection_pool, ConnectionPool, JsonSerializer, SimpleBlockStream
+from aiorpc.aiohttp_transport import AIOHttpTransportServer, handle_rpc
 
 
 server_addr = 'localhost'
@@ -30,10 +29,8 @@ LARGE_FILE_PATH = "/home/koder/Downloads/ops.tar.gz"
 
 @contextlib.asynccontextmanager
 async def start_server() -> Iterable[None]:
-    handler = functools.partial(handle_rpc, serializer=rpc.JsonSerializer(), bstream=rpc.SimpleBlockStream())
-    server = AIOHttpTransportServer(on_server_startup=[],
-                                    on_server_shutdown=[],
-                                    process_request=handler,
+    handler = functools.partial(handle_rpc, serializer=JsonSerializer(), bstream=SimpleBlockStream())
+    server = AIOHttpTransportServer(process_request=handler,
                                     ip=server_addr,
                                     port=PORT,
                                     ssl_cert=SSL_CERT,
@@ -435,8 +432,11 @@ async def test_file_tail():
         async with connect_http(node=server_addr, ssl_cert=SSL_CERT, api_key=API_KEY, port=PORT) as conn:
             with tempfile.NamedTemporaryFile() as fl:
                 for i in range(1000):
-                    fl.write(f"{i}\n")
+                    fl.write(f"{i}\n".encode())
                 fl.flush()
 
                 fl.seek(1000, os.SEEK_END)
-                assert fl.read() == await conn.tail_file(fl.name, 1000)
+                val = b""
+                async for chunk in conn.tail_file(fl.name, 1000):
+                    val += chunk
+                assert fl.read() == val

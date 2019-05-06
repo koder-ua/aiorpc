@@ -9,8 +9,7 @@ from typing import List, Optional, Tuple, Dict
 
 from koder_utils import start_proc, run_proc_timeout, CmdType, CMDResult
 
-from ..plugins_api import expose_func
-from ..common import logger
+from .. import logger, expose_func
 
 
 expose = functools.partial(expose_func, "cli")

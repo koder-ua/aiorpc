@@ -1,6 +1,7 @@
 import os
 import abc
 import json
+
 import time
 import asyncio
 import os.path
@@ -8,17 +9,16 @@ import functools
 import subprocess
 import collections
 from pathlib import Path
-from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Iterator, List, Dict, Tuple, Any, Callable, Set, Iterable, Coroutine, Optional, AsyncIterator, \
-    Awaitable, BinaryIO, cast
+from typing import (Iterator, List, Dict, Tuple, Any, Callable, Set, Iterable, Optional, AsyncIterator, Awaitable,
+                    BinaryIO, cast)
 
 from koder_utils import LocalHost, b2ssize
 from cephlib import (RecId, CephCLI, CephOp, ParseResult, RecordFile, CephHealth, iter_log_messages, iter_ceph_logs_fd,
                      CephRelease, OpRec, IPacker, get_historic_packer, get_ceph_version)
 
-from ..plugins_api import expose_func, expose_type, register_startup, register_shutdown, ConfigVar
-from ..common import IReadableAsync, ChunkedFile, logger
+from .. import (logger, expose_func, expose_type, IReadableAsync, ChunkedFile, register_startup, register_shutdown,
+                ConfigVar)
 
 
 expose = functools.partial(expose_func, "ceph")
@@ -61,7 +61,6 @@ class HistoricCollectionConfig:
     min_device_free: int = DEFAULT_MIN_DEVICE_FREE
     packer_name: str = 'compact'
     cmd_timeout: float = 50
-    durable: bool = True
     stats_keep_cycles: int = 10
 
     def __str__(self) -> str:
@@ -139,16 +138,11 @@ def analyze_ceph_logs_for_issues(sort_buffer_size: int = 10000) \
 
 
 class Recorder(metaclass=abc.ABCMeta):
-    def __init__(self, exit_evt: asyncio.Event, cli: CephCLI, cfg: HistoricCollectionConfig,
+    def __init__(self, cli: CephCLI, cfg: HistoricCollectionConfig,
                  record_file: Optional[RecordFile], packer: Optional[IPacker]) -> None:
-        if cfg.durable:
-            assert record_file
-            assert packer
-        else:
-            assert not record_file
-            assert not packer
+        assert record_file
+        assert packer
 
-        self.exit_evt = exit_evt
         self.cli = cli
         self.cfg = cfg
         self.record_file = record_file
@@ -166,26 +160,14 @@ class Recorder(metaclass=abc.ABCMeta):
 
 
 class DumpHistoric(Recorder):
-    def __init__(self, evt: asyncio.Event, cli: CephCLI, cfg: HistoricCollectionConfig,
+    def __init__(self, cli: CephCLI, cfg: HistoricCollectionConfig,
                  record_file: Optional[RecordFile], packer: Optional[IPacker]) -> None:
-        Recorder.__init__(self, evt, cli, cfg, record_file, packer)
+        Recorder.__init__(self, cli, cfg, record_file, packer)
         self.osd_ids = self.cfg.osd_ids.copy()
         self.not_inited_osd: Set[int] = set(self.cfg.osd_ids)
         self.pools_map: Dict[int, Tuple[str, int]] = {}
         self.pools_map_no_name: Dict[int, int] = {}
-        self.last_time_ops: Dict[int, Set[str]] = defaultdict(set)
-
-        self.per_pg_stats: List[Dict[Tuple[int, int], List[int]]] = []
-        self.per_osd_stats: List[Dict[int, List[int]]] = []
-
-    def pull_summary(self) -> Tuple[List[Dict[Tuple[int, int], List[int]]], List[Dict[int, List[int]]]]:
-        per_osd_data = dumper.historic.per_osd_stats
-        per_pg_data = dumper.historic.per_pg_stats
-
-        dumper.historic.per_osd_stats = []
-        dumper.historic.per_pg_stats = []
-
-        return per_pg_data, per_osd_data
+        self.last_time_ops: Set[str] = set()
 
     async def reload_pools(self) -> Optional[FileRec]:
         pools = await self.cli.get_pools()
@@ -213,9 +195,8 @@ class DumpHistoric(Recorder):
             # pools updated - skip this cycle, as different ops may came from pools before and after update
             yield new_rec
         else:
-            per_pg: Dict[Tuple[int, int], List[int]] = collections.defaultdict(list)
-            per_osd: Dict[int, List[int]] = collections.defaultdict(list)
-
+            prev_ops = self.last_time_ops
+            self.last_time_ops = set()
             for osd_id in set(self.osd_ids).difference(self.not_inited_osd):
                 try:
                     parsed = await self.cli.get_historic(osd_id)
@@ -227,25 +208,16 @@ class DumpHistoric(Recorder):
                     self.not_inited_osd.add(osd_id)
                     continue
 
-                ops = []
+                ops: List[CephOp] = []
 
                 for op in self.parse_historic_records(parsed['ops']):
-                    if op.tp is not None and op.description not in self.last_time_ops[osd_id]:
+                    if op.tp is not None and op.description not in prev_ops:
                         assert op.pack_pool_id is None
                         op.pack_pool_id = self.pools_map_no_name[op.pool_id]
                         ops.append(op)
-                        per_pg[(op.pool_id, op.pg)].append(op.duration)
-                        per_osd[osd_id].append(op.duration)
 
-                self.last_time_ops[osd_id] = {op.description for op in ops}
+                self.last_time_ops.update(op.description for op in ops)
                 yield (RecId.ops, (osd_id, ctime, ops))
-
-            if len(self.per_pg_stats) > self.cfg.stats_keep_cycles:
-                self.per_pg_stats = self.per_pg_stats[-self.cfg.stats_keep_cycles:]
-                self.per_osd_stats = self.per_osd_stats[-self.cfg.stats_keep_cycles:]
-
-            self.per_pg_stats.append(per_pg)
-            self.per_osd_stats.append(per_osd)
 
     def parse_historic_records(self, ops: List[OpRec]) -> Iterator[CephOp]:
         for raw_op in ops:
@@ -321,36 +293,30 @@ class CephHistoricDumper:
         self.cli = CephCLI(node=None, extra_params=self.cfg.ceph_extra_args, timeout=collection_config.cmd_timeout,
                            release=self.release)
 
-        if self.cfg.durable:
-            self.packer: IPacker = get_historic_packer(self.cfg.packer_name)
-            if not self.record_file_path.exists():
-                self.record_file_path.parent.mkdir(parents=True, exist_ok=True)
-                with self.record_file_path.open("wb"):
-                    pass
-            self.record_fd = self.record_file_path.open("r+b")
-            self.record_file = RecordFile(self.record_fd)
-            if self.record_file.prepare_for_append(truncate_invalid=True):
-                logger.error(f"Records file broken at offset {self.record_file.tell()}, truncated to last valid record")
-        else:
-            self.packer = None
-            self.record_fd = None
-            self.record_file = None
+        self.packer: IPacker = get_historic_packer(self.cfg.packer_name)
+        if not self.record_file_path.exists():
+            self.record_file_path.parent.mkdir(parents=True, exist_ok=True)
+            with self.record_file_path.open("wb"):
+                pass
+        self.record_fd = self.record_file_path.open("r+b")
+        self.record_file = RecordFile(self.record_fd)
+        if self.record_file.prepare_for_append(truncate_invalid=True):
+            logger.error(f"Records file broken at offset {self.record_file.tell()}, truncated to last valid record")
 
         self.exit_evt = asyncio.Event()
         self.active_loops_tasks: Set[Awaitable] = set()
 
     def start(self) -> None:
         assert not self.active_loops_tasks
-        self.historic = DumpHistoric(self.exit_evt, self.cli, self.cfg, self.record_file, self.packer)
+        self.historic = DumpHistoric(self.cli, self.cfg, self.record_file, self.packer)
 
-        recorders = [
-            (self.cfg.duration, self.historic),
-            (self.cfg.extra_dump_timeout, InfoDumper(self.exit_evt, self.cli, self.cfg, self.record_file, self.packer)),
-            (self.cfg.pg_dump_timeout, DumpPGDump(self.exit_evt, self.cli, self.cfg, self.record_file, self.packer)),
-        ]
+        recorders = [(self.cfg.duration, self.historic)]
 
-        self.active_loops_tasks = {asyncio.create_task(self.loop(timeout, recorder))
-                                   for timeout, recorder in recorders}
+        info_dumper = InfoDumper(self.cli, self.cfg, self.record_file, self.packer)
+        pg_dumper = DumpPGDump(self.cli, self.cfg, self.record_file, self.packer)
+        recorders.extend([(self.cfg.extra_dump_timeout, info_dumper), (self.cfg.pg_dump_timeout, pg_dumper)])
+
+        self.active_loops_tasks = {asyncio.create_task(self.loop(timeout, recorder)) for timeout, recorder in recorders}
 
     def get_free_space(self) -> int:
         vstat = os.statvfs(str(self.record_file_path))
@@ -365,14 +331,15 @@ class CephHistoricDumper:
                            b2ssize(disk_free), b2ssize(self.cfg.min_device_free))
             return False
 
-        if time.time() >= self.cfg.collection_end_time:
-            logger.warning("Stop recording due record time expired")
-            return False
-
         if self.record_file.tell() >= self.cfg.max_record_file:
             logger.warning("Stop recording due to record file too large - %s, while %s is a limit",
                            b2ssize(self.record_file.tell()), b2ssize(self.cfg.max_record_file))
             return False
+
+        if time.time() >= self.cfg.collection_end_time:
+            logger.warning("Stop recording due record time expired")
+            return False
+
         return True
 
     async def stop(self, timeout=60) -> bool:
@@ -512,23 +479,6 @@ def get_collected_historic_data(offset: int, size: int = None) -> IReadableAsync
                        till_offset=offset + size if size is not None else None)
 
 
-@expose
-def pull_collected_historic_summary() -> Dict[str, List[int]]:
-    assert dumper, "Collection is not running"
-    assert dumper.historic, "No historic dumper found"
-    per_pg_data, per_osd_data = dumper.historic.pull_summary()
-
-    agg_total: Dict[str, List[int]] = {}
-    for items in per_pg_data:
-        for (pool_id, pg_id), values in items.items():
-            agg_total.setdefault(f"{pool_id}.{pg_id}", []).extend(values)
-
-    for items in per_osd_data:
-        for osd_id, values in items.items():
-            agg_total.setdefault(f"{osd_id}", []).extend(values)
-    return agg_total
-
-
 @register_startup
 async def restore_collection(_: Any):
     cfg_path = historic_ops_cfg_file()
@@ -548,3 +498,76 @@ async def restore_collection(_: Any):
 async def stop_collection(_: Any):
     await stop_historic_collection(not_err=True)
 
+
+@expose
+async def configure_historic(osd_ids: List[int],
+                             size: int,
+                             duration: float,
+                             ceph_extra_args: List[str],
+                             cmd_timeout: float,
+                             release: CephRelease) -> Tuple[List[int], Dict[int, Tuple[int, float]]]:
+    cli = CephCLI(node=None, extra_params=ceph_extra_args, timeout=cmd_timeout, release=release)
+    prev_settings: Dict[int, Tuple[int, float]] = {}
+    failed: List[int] = []
+    for osd_id in osd_ids:
+        sd = await cli.get_history_size_duration(osd_id)
+        if sd:
+            prev_settings[osd_id] = sd
+            if await cli.set_history_size_duration(osd_id, size, duration):
+                failed.append(osd_id)
+
+    return failed, prev_settings
+
+
+previous_ops: Set[str] = set()
+
+
+@expose
+async def get_historic(osd_ids: List[int],
+                       ceph_extra_args: List[str],
+                       cmd_timeout: float,
+                       release: CephRelease,
+                       min_duration: int = 0,
+                       packer: str = 'compact') -> bytes:
+    cli = CephCLI(node=None, extra_params=ceph_extra_args, timeout=cmd_timeout, release=release)
+    all_ops: Dict[int, List[CephOp]] = {}
+    packer = get_historic_packer(packer)
+
+    pops = previous_ops
+    curr_ops: Set[str] = set()
+
+    for osd_id in osd_ids:
+        try:
+            raw_ops = await cli.get_historic(osd_id)
+        except (subprocess.CalledProcessError, OSError):
+            continue
+
+        for raw_op in raw_ops:
+            if min_duration > int(raw_op.get('duration') * 1000):
+                continue
+            try:
+                _, op = CephOp.parse_op(raw_op)
+                if not op:
+                    continue
+            except Exception:
+                continue
+
+            if op.tp is not None and op.description not in pops:
+                op.pack_pool_id = op.pool_id
+                all_ops.setdefault(osd_id, []).append(op)
+                curr_ops.add(op.description)
+
+    previous_ops.clear()
+    previous_ops.update(curr_ops)
+
+    res = b""
+    for osd_id, ops in all_ops.items():
+        for rec_tp, data in packer.pack_record(RecId.ops, (osd_id, time.time(), ops)):
+            assert rec_tp == RecId.ops
+            res += data
+    return res
+
+
+def unpack_historic_simple(data: bytes, packer: str = 'compact') -> Iterator[Any]:
+    for ops_list in get_historic_packer(packer).unpack(RecId.ops, data):
+        yield from ops_list
