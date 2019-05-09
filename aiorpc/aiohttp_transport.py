@@ -67,7 +67,7 @@ class AIOHttpTransportClient(AsyncTransportClient):
         await self.http_conn.__aexit__(None, None, None)
 
     def __str__(self) -> str:
-        return f"HTTP({self.rpc_path})"
+        return f"HTTP({self.rpc_url})"
 
     async def get_settings(self) -> Dict[str, Any]:
         data = b""

@@ -55,6 +55,7 @@ def parse_args(argv: List[str]) -> Any:
         else:
             sbp.add_argument("--config", metavar='CONFIG_FILE', required=True,
                              help="Config file path (default: %(default)s)")
+        sbp.add_argument("--install-root", default=None, help="Dev hack, dont use it")
 
     return parser.parse_args(argv[1:])
 
@@ -62,15 +63,19 @@ def parse_args(argv: List[str]) -> Any:
 def main(argv: List[str]) -> int:
     opts = parse_args(argv)
 
+    # DEV HACK
+    if opts.install_root:
+        from . import service
+        service.INSTALL_PATH = opts.install_root
+
     cfg = get_config(opts.config)
     config_logging(cfg, no_persistent=True)
+
 
     if opts.subparser_name == 'status':
         inventory = read_inventory(get_inventory_path())
         asyncio.run(status(cfg, inventory))
-        return 0
-
-    if opts.subparser_name in {'install', 'start', 'stop', 'uninstall'}:
+    elif opts.subparser_name in {'install', 'start', 'stop', 'uninstall'}:
         if opts.subparser_name == 'install':
             inventory = read_inventory(opts.inventory)
         else:

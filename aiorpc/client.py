@@ -52,6 +52,9 @@ class AsyncClientConnection:
     retry_timeout: int = 5
     request_in_progress: bool = field(default=False, init=False)
 
+    def __str__(self) -> str:
+        return f"AsyncConn to {self.transport}"
+
     def __post_init__(self) -> None:
         assert self.transport.is_connected, "Transport must be connected"
 
@@ -146,7 +149,10 @@ class IAIORPCNode(IAsyncNode):
     proxy: Optional[Proxy] = field(default=None, init=False)
 
     def __str__(self) -> str:
-        return f"AgentRPC({self.conn})"
+        return f"IAIORPCNode({self.conn}, id={id(self)})"
+
+    def __repr__(self) -> str:
+        return str(self)
 
     async def connect(self) -> None:
         self.proxy = await self.conn.connect()

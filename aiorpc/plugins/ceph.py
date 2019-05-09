@@ -505,15 +505,15 @@ async def configure_historic(osd_ids: List[int],
                              duration: float,
                              ceph_extra_args: List[str],
                              cmd_timeout: float,
-                             release: CephRelease) -> Tuple[List[int], Dict[int, Tuple[int, float]]]:
-    cli = CephCLI(node=None, extra_params=ceph_extra_args, timeout=cmd_timeout, release=release)
+                             release_i: int) -> Tuple[List[int], Dict[int, Tuple[int, float]]]:
+    cli = CephCLI(node=None, extra_params=ceph_extra_args, timeout=cmd_timeout, release=CephRelease(release_i))
     prev_settings: Dict[int, Tuple[int, float]] = {}
     failed: List[int] = []
     for osd_id in osd_ids:
         sd = await cli.get_history_size_duration(osd_id)
         if sd:
             prev_settings[osd_id] = sd
-            if await cli.set_history_size_duration(osd_id, size, duration):
+            if not await cli.set_history_size_duration(osd_id, size, duration):
                 failed.append(osd_id)
 
     return failed, prev_settings
@@ -524,16 +524,15 @@ previous_ops: Set[str] = set()
 
 @expose
 async def get_historic(osd_ids: List[int],
+                       size: int,
+                       duration: float,
                        ceph_extra_args: List[str],
                        cmd_timeout: float,
-                       release: CephRelease,
+                       release_i: int,
                        min_duration: int = 0,
-                       packer: str = 'compact') -> bytes:
-    cli = CephCLI(node=None, extra_params=ceph_extra_args, timeout=cmd_timeout, release=release)
+                       packer_name: str = 'compact') -> bytes:
+    cli = CephCLI(node=None, extra_params=ceph_extra_args, timeout=cmd_timeout, release=CephRelease(release_i))
     all_ops: Dict[int, List[CephOp]] = {}
-    packer = get_historic_packer(packer)
-
-    pops = previous_ops
     curr_ops: Set[str] = set()
 
     for osd_id in osd_ids:
@@ -542,7 +541,12 @@ async def get_historic(osd_ids: List[int],
         except (subprocess.CalledProcessError, OSError):
             continue
 
-        for raw_op in raw_ops:
+        if raw_ops['size'] != size or raw_ops['duration'] != duration:
+            raise RuntimeError(
+                f"Historic ops setting changed for osd {osd_id}. Expect: duration={duration}, size={size}" +
+                f". Get: duration={raw_ops['duration']}, size={raw_ops['size']}")
+
+        for raw_op in raw_ops['ops']:
             if min_duration > int(raw_op.get('duration') * 1000):
                 continue
             try:
@@ -552,7 +556,7 @@ async def get_historic(osd_ids: List[int],
             except Exception:
                 continue
 
-            if op.tp is not None and op.description not in pops:
+            if op.tp is not None and op.description not in previous_ops:
                 op.pack_pool_id = op.pool_id
                 all_ops.setdefault(osd_id, []).append(op)
                 curr_ops.add(op.description)
@@ -560,14 +564,15 @@ async def get_historic(osd_ids: List[int],
     previous_ops.clear()
     previous_ops.update(curr_ops)
 
-    res = b""
-    for osd_id, ops in all_ops.items():
-        for rec_tp, data in packer.pack_record(RecId.ops, (osd_id, time.time(), ops)):
-            assert rec_tp == RecId.ops
-            res += data
-    return res
+    return b"".join(pack_historic(packer_name, osd_id, ops) for osd_id, ops in all_ops.items())
 
 
-def unpack_historic_simple(data: bytes, packer: str = 'compact') -> Iterator[Any]:
-    for ops_list in get_historic_packer(packer).unpack(RecId.ops, data):
-        yield from ops_list
+def pack_historic(packer: str, osd_id: int, ops: Iterable[CephOp]) -> bytes:
+    packer = get_historic_packer(packer)
+    rec_tp, data = packer.pack_record(RecId.ops, (osd_id, int(time.time()), ops))
+    assert rec_tp == RecId.ops
+    return data
+
+
+def unpack_historic_simple(data: bytes, packer: str = 'compact') -> Iterator[Dict[str, Any]]:
+    return get_historic_packer(packer).unpack(RecId.ops, data)
