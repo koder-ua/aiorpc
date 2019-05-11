@@ -1,0 +1,1119 @@
+{
+    "size": 20,
+    "duration": 600,
+    "ops": [
+        {
+            "description": "osd_op(client.21484765.0:53217536 6.5bc 6:3da92ff3:::rbd_data.40a7246b8b4567.0000000000000351:head [write 3932160~4096] snapc 0=[] ondisk+write+known_if_redirected e6215)",
+            "initiated_at": "2019-05-10 12:48:19.554108",
+            "age": 566.214637,
+            "duration": 0.328009,
+            "type_data": {
+                "flag_point": "commit sent; apply or cleanup",
+                "client_info": {
+                    "client": "client.21484765",
+                    "client_addr": "192.168.10.164:0/3412097683",
+                    "tid": 53217536
+                },
+                "events": [
+                    {
+                        "time": "2019-05-10 12:48:19.554108",
+                        "event": "initiated"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.554220",
+                        "event": "queued_for_pg"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.554261",
+                        "event": "reached_pg"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.554286",
+                        "event": "started"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.554321",
+                        "event": "waiting for subops from 22,29"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.555230",
+                        "event": "op_commit"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.555241",
+                        "event": "op_applied"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.759192",
+                        "event": "sub_op_commit_rec from 29"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.882070",
+                        "event": "sub_op_commit_rec from 22"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.882109",
+                        "event": "commit_sent"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.882117",
+                        "event": "done"
+                    }
+                ]
+            }
+        },
+        {
+            "description": "osd_op(client.21484765.0:53217537 6.5bc 6:3da92ff3:::rbd_data.40a7246b8b4567.0000000000000351:head [write 3940352~4096] snapc 0=[] ondisk+write+known_if_redirected e6215)",
+            "initiated_at": "2019-05-10 12:48:19.554228",
+            "age": 566.214517,
+            "duration": 0.327922,
+            "type_data": {
+                "flag_point": "commit sent; apply or cleanup",
+                "client_info": {
+                    "client": "client.21484765",
+                    "client_addr": "192.168.10.164:0/3412097683",
+                    "tid": 53217537
+                },
+                "events": [
+                    {
+                        "time": "2019-05-10 12:48:19.554228",
+                        "event": "initiated"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.554289",
+                        "event": "queued_for_pg"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.554506",
+                        "event": "reached_pg"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.554523",
+                        "event": "started"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.554550",
+                        "event": "waiting for subops from 22,29"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.555279",
+                        "event": "op_commit"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.555280",
+                        "event": "op_applied"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.760103",
+                        "event": "sub_op_commit_rec from 29"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.882139",
+                        "event": "sub_op_commit_rec from 22"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.882147",
+                        "event": "commit_sent"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.882150",
+                        "event": "done"
+                    }
+                ]
+            }
+        },
+        {
+            "description": "osd_op(client.21484765.0:53217538 6.5bc 6:3da92ff3:::rbd_data.40a7246b8b4567.0000000000000351:head [write 3964928~4096] snapc 0=[] ondisk+write+known_if_redirected e6215)",
+            "initiated_at": "2019-05-10 12:48:19.554292",
+            "age": 566.214454,
+            "duration": 0.327882,
+            "type_data": {
+                "flag_point": "commit sent; apply or cleanup",
+                "client_info": {
+                    "client": "client.21484765",
+                    "client_addr": "192.168.10.164:0/3412097683",
+                    "tid": 53217538
+                },
+                "events": [
+                    {
+                        "time": "2019-05-10 12:48:19.554292",
+                        "event": "initiated"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.554339",
+                        "event": "queued_for_pg"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.554673",
+                        "event": "reached_pg"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.554687",
+                        "event": "started"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.554714",
+                        "event": "waiting for subops from 22,29"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.555282",
+                        "event": "op_commit"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.555284",
+                        "event": "op_applied"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.760125",
+                        "event": "sub_op_commit_rec from 29"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.882163",
+                        "event": "sub_op_commit_rec from 22"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.882170",
+                        "event": "commit_sent"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.882174",
+                        "event": "done"
+                    }
+                ]
+            }
+        },
+        {
+            "description": "osd_op(client.21484765.0:53217539 6.5bc 6:3da92ff3:::rbd_data.40a7246b8b4567.0000000000000351:head [write 3977216~4096] snapc 0=[] ondisk+write+known_if_redirected e6215)",
+            "initiated_at": "2019-05-10 12:48:19.554342",
+            "age": 566.214404,
+            "duration": 0.327888,
+            "type_data": {
+                "flag_point": "commit sent; apply or cleanup",
+                "client_info": {
+                    "client": "client.21484765",
+                    "client_addr": "192.168.10.164:0/3412097683",
+                    "tid": 53217539
+                },
+                "events": [
+                    {
+                        "time": "2019-05-10 12:48:19.554342",
+                        "event": "initiated"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.554389",
+                        "event": "queued_for_pg"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.554835",
+                        "event": "reached_pg"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.554850",
+                        "event": "started"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.554877",
+                        "event": "waiting for subops from 22,29"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.555725",
+                        "event": "op_commit"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.555728",
+                        "event": "op_applied"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.760137",
+                        "event": "sub_op_commit_rec from 29"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.882205",
+                        "event": "sub_op_commit_rec from 22"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.882226",
+                        "event": "commit_sent"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.882230",
+                        "event": "done"
+                    }
+                ]
+            }
+        },
+        {
+            "description": "osd_op(client.21484765.0:53217540 6.5bc 6:3da92ff3:::rbd_data.40a7246b8b4567.0000000000000351:head [write 4071424~4096] snapc 0=[] ondisk+write+known_if_redirected e6215)",
+            "initiated_at": "2019-05-10 12:48:19.554391",
+            "age": 566.214354,
+            "duration": 0.327863,
+            "type_data": {
+                "flag_point": "commit sent; apply or cleanup",
+                "client_info": {
+                    "client": "client.21484765",
+                    "client_addr": "192.168.10.164:0/3412097683",
+                    "tid": 53217540
+                },
+                "events": [
+                    {
+                        "time": "2019-05-10 12:48:19.554391",
+                        "event": "initiated"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.554448",
+                        "event": "queued_for_pg"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.555041",
+                        "event": "reached_pg"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.555057",
+                        "event": "started"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.555085",
+                        "event": "waiting for subops from 22,29"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.555730",
+                        "event": "op_commit"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.555732",
+                        "event": "op_applied"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.760157",
+                        "event": "sub_op_commit_rec from 29"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.882243",
+                        "event": "sub_op_commit_rec from 22"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.882251",
+                        "event": "commit_sent"
+                    },
+                    {
+                        "time": "2019-05-10 12:48:19.882254",
+                        "event": "done"
+                    }
+                ]
+            }
+        },
+        {
+            "description": "osd_op(client.18496022.0:622061375 6.634 6:2c735ef9:::rbd_data.1a8b266b8b4567.0000000000001d26:head [write 417792~2097152] snapc 0=[] ondisk+write+known_if_redirected e6215)",
+            "initiated_at": "2019-05-10 12:51:00.298495",
+            "age": 405.470250,
+            "duration": 0.307990,
+            "type_data": {
+                "flag_point": "commit sent; apply or cleanup",
+                "client_info": {
+                    "client": "client.18496022",
+                    "client_addr": "192.168.10.128:0/742640144",
+                    "tid": 622061375
+                },
+                "events": [
+                    {
+                        "time": "2019-05-10 12:51:00.298495",
+                        "event": "initiated"
+                    },
+                    {
+                        "time": "2019-05-10 12:51:00.300485",
+                        "event": "queued_for_pg"
+                    },
+                    {
+                        "time": "2019-05-10 12:51:00.300521",
+                        "event": "reached_pg"
+                    },
+                    {
+                        "time": "2019-05-10 12:51:00.300556",
+                        "event": "started"
+                    },
+                    {
+                        "time": "2019-05-10 12:51:00.300595",
+                        "event": "waiting for subops from 84,90"
+                    },
+                    {
+                        "time": "2019-05-10 12:51:00.344427",
+                        "event": "op_commit"
+                    },
+                    {
+                        "time": "2019-05-10 12:51:00.344429",
+                        "event": "op_applied"
+                    },
+                    {
+                        "time": "2019-05-10 12:51:00.390363",
+                        "event": "sub_op_commit_rec from 84"
+                    },
+                    {
+                        "time": "2019-05-10 12:51:00.606441",
+                        "event": "sub_op_commit_rec from 90"
+                    },
+                    {
+                        "time": "2019-05-10 12:51:00.606462",
+                        "event": "commit_sent"
+                    },
+                    {
+                        "time": "2019-05-10 12:51:00.606485",
+                        "event": "done"
+                    }
+                ]
+            }
+        },
+        {
+            "description": "osd_op(client.18496022.0:622061376 6.634 6:2c735ef9:::rbd_data.1a8b266b8b4567.0000000000001d26:head [write 2572288~1048576] snapc 0=[] ondisk+write+known_if_redirected e6215)",
+            "initiated_at": "2019-05-10 12:51:00.305423",
+            "age": 405.463323,
+            "duration": 0.301094,
+            "type_data": {
+                "flag_point": "commit sent; apply or cleanup",
+                "client_info": {
+                    "client": "client.18496022",
+                    "client_addr": "192.168.10.128:0/742640144",
+                    "tid": 622061376
+                },
+                "events": [
+                    {
+                        "time": "2019-05-10 12:51:00.305423",
+                        "event": "initiated"
+                    },
+                    {
+                        "time": "2019-05-10 12:51:00.306515",
+                        "event": "queued_for_pg"
+                    },
+                    {
+                        "time": "2019-05-10 12:51:00.306530",
+                        "event": "reached_pg"
+                    },
+                    {
+                        "time": "2019-05-10 12:51:00.306551",
+                        "event": "started"
+                    },
+                    {
+                        "time": "2019-05-10 12:51:00.306581",
+                        "event": "waiting for subops from 84,90"
+                    },
+                    {
+                        "time": "2019-05-10 12:51:00.344431",
+                        "event": "op_commit"
+                    },
+                    {
+                        "time": "2019-05-10 12:51:00.344432",
+                        "event": "op_applied"
+                    },
+                    {
+                        "time": "2019-05-10 12:51:00.391088",
+                        "event": "sub_op_commit_rec from 84"
+                    },
+                    {
+                        "time": "2019-05-10 12:51:00.606501",
+                        "event": "sub_op_commit_rec from 90"
+                    },
+                    {
+                        "time": "2019-05-10 12:51:00.606512",
+                        "event": "commit_sent"
+                    },
+                    {
+                        "time": "2019-05-10 12:51:00.606516",
+                        "event": "done"
+                    }
+                ]
+            }
+        },
+        {
+            "description": "osd_op(client.21525492.0:54082489 6.58e 6:71bcc97f:::rbd_data.40a72a6b8b4567.0000000000000338:head [write 2916352~4096] snapc 0=[] ondisk+write+known_if_redirected e6215)",
+            "initiated_at": "2019-05-10 12:52:02.376016",
+            "age": 343.392730,
+            "duration": 0.294649,
+            "type_data": {
+                "flag_point": "commit sent; apply or cleanup",
+                "client_info": {
+                    "client": "client.21525492",
+                    "client_addr": "192.168.10.106:0/3359161381",
+                    "tid": 54082489
+                },
+                "events": [
+                    {
+                        "time": "2019-05-10 12:52:02.376016",
+                        "event": "initiated"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:02.376058",
+                        "event": "queued_for_pg"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:02.376100",
+                        "event": "reached_pg"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:02.376152",
+                        "event": "started"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:02.376181",
+                        "event": "waiting for subops from 23,94"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:02.376783",
+                        "event": "op_commit"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:02.376786",
+                        "event": "op_applied"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:02.380946",
+                        "event": "sub_op_commit_rec from 94"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:02.670635",
+                        "event": "sub_op_commit_rec from 23"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:02.670656",
+                        "event": "commit_sent"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:02.670665",
+                        "event": "done"
+                    }
+                ]
+            }
+        },
+        {
+            "description": "osd_op(client.21525492.0:54082490 6.58e 6:71bcc97f:::rbd_data.40a72a6b8b4567.0000000000000338:head [write 2945024~4096] snapc 0=[] ondisk+write+known_if_redirected e6215)",
+            "initiated_at": "2019-05-10 12:52:02.376062",
+            "age": 343.392683,
+            "duration": 0.294635,
+            "type_data": {
+                "flag_point": "commit sent; apply or cleanup",
+                "client_info": {
+                    "client": "client.21525492",
+                    "client_addr": "192.168.10.106:0/3359161381",
+                    "tid": 54082490
+                },
+                "events": [
+                    {
+                        "time": "2019-05-10 12:52:02.376062",
+                        "event": "initiated"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:02.376103",
+                        "event": "queued_for_pg"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:02.376344",
+                        "event": "reached_pg"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:02.376373",
+                        "event": "started"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:02.376399",
+                        "event": "waiting for subops from 23,94"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:02.377209",
+                        "event": "op_commit"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:02.377211",
+                        "event": "op_applied"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:02.381413",
+                        "event": "sub_op_commit_rec from 94"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:02.670680",
+                        "event": "sub_op_commit_rec from 23"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:02.670693",
+                        "event": "commit_sent"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:02.670697",
+                        "event": "done"
+                    }
+                ]
+            }
+        },
+        {
+            "description": "osd_op(client.21525492.0:54082491 6.58e 6:71bcc97f:::rbd_data.40a72a6b8b4567.0000000000000338:head [write 2957312~16384] snapc 0=[] ondisk+write+known_if_redirected e6215)",
+            "initiated_at": "2019-05-10 12:52:02.376105",
+            "age": 343.392641,
+            "duration": 0.294619,
+            "type_data": {
+                "flag_point": "commit sent; apply or cleanup",
+                "client_info": {
+                    "client": "client.21525492",
+                    "client_addr": "192.168.10.106:0/3359161381",
+                    "tid": 54082491
+                },
+                "events": [
+                    {
+                        "time": "2019-05-10 12:52:02.376105",
+                        "event": "initiated"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:02.376134",
+                        "event": "queued_for_pg"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:02.376512",
+                        "event": "reached_pg"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:02.376527",
+                        "event": "started"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:02.376554",
+                        "event": "waiting for subops from 23,94"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:02.377212",
+                        "event": "op_commit"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:02.377213",
+                        "event": "op_applied"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:02.381431",
+                        "event": "sub_op_commit_rec from 94"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:02.670709",
+                        "event": "sub_op_commit_rec from 23"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:02.670720",
+                        "event": "commit_sent"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:02.670723",
+                        "event": "done"
+                    }
+                ]
+            }
+        },
+        {
+            "description": "osd_op(client.21525492.0:54082507 6.58e 6:71bcc97f:::rbd_data.40a72a6b8b4567.0000000000000338:head [write 2928640~8192] snapc 0=[] ondisk+write+known_if_redirected e6215)",
+            "initiated_at": "2019-05-10 12:52:03.419806",
+            "age": 342.348939,
+            "duration": 0.320856,
+            "type_data": {
+                "flag_point": "commit sent; apply or cleanup",
+                "client_info": {
+                    "client": "client.21525492",
+                    "client_addr": "192.168.10.106:0/3359161381",
+                    "tid": 54082507
+                },
+                "events": [
+                    {
+                        "time": "2019-05-10 12:52:03.419806",
+                        "event": "initiated"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:03.419862",
+                        "event": "queued_for_pg"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:03.419904",
+                        "event": "reached_pg"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:03.419929",
+                        "event": "started"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:03.419962",
+                        "event": "waiting for subops from 23,94"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:03.420981",
+                        "event": "sub_op_commit_rec from 23"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:03.576006",
+                        "event": "op_commit"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:03.576007",
+                        "event": "op_applied"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:03.740636",
+                        "event": "sub_op_commit_rec from 94"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:03.740655",
+                        "event": "commit_sent"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:03.740662",
+                        "event": "done"
+                    }
+                ]
+            }
+        },
+        {
+            "description": "osd_op(client.22202181.0:38853479 6.227 6:e4463219:::rbd_data.52c70f6b8b4567.000000000000082c:head [write 4145152~4096] snapc 0=[] ondisk+write+known_if_redirected e6215)",
+            "initiated_at": "2019-05-10 12:52:06.599404",
+            "age": 339.169342,
+            "duration": 0.404482,
+            "type_data": {
+                "flag_point": "commit sent; apply or cleanup",
+                "client_info": {
+                    "client": "client.22202181",
+                    "client_addr": "192.168.10.120:0/934617918",
+                    "tid": 38853479
+                },
+                "events": [
+                    {
+                        "time": "2019-05-10 12:52:06.599404",
+                        "event": "initiated"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:06.599446",
+                        "event": "queued_for_pg"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:06.599486",
+                        "event": "reached_pg"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:06.599511",
+                        "event": "started"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:06.599546",
+                        "event": "waiting for subops from 22,30"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:06.600233",
+                        "event": "op_commit"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:06.600236",
+                        "event": "op_applied"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:06.600591",
+                        "event": "sub_op_commit_rec from 22"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:07.003856",
+                        "event": "sub_op_commit_rec from 30"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:07.003876",
+                        "event": "commit_sent"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:07.003886",
+                        "event": "done"
+                    }
+                ]
+            }
+        },
+        {
+            "description": "osd_op(client.18496022.0:622067742 6.95 6:a913f0c9:::rbd_data.1a8b266b8b4567.0000000000001dc5:head [writefull 0~4194304] snapc 0=[] ondisk+write+known_if_redirected e6215)",
+            "initiated_at": "2019-05-10 12:52:31.753331",
+            "age": 314.015414,
+            "duration": 0.281284,
+            "type_data": {
+                "flag_point": "commit sent; apply or cleanup",
+                "client_info": {
+                    "client": "client.18496022",
+                    "client_addr": "192.168.10.128:0/742640144",
+                    "tid": 622067742
+                },
+                "events": [
+                    {
+                        "time": "2019-05-10 12:52:31.753331",
+                        "event": "initiated"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:31.757222",
+                        "event": "queued_for_pg"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:31.757261",
+                        "event": "reached_pg"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:31.757286",
+                        "event": "started"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:31.757320",
+                        "event": "waiting for subops from 11,36"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:31.804477",
+                        "event": "sub_op_commit_rec from 36"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:31.805093",
+                        "event": "sub_op_commit_rec from 11"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:32.034572",
+                        "event": "op_commit"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:32.034594",
+                        "event": "commit_sent"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:32.034596",
+                        "event": "op_applied"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:32.034616",
+                        "event": "done"
+                    }
+                ]
+            }
+        },
+        {
+            "description": "osd_repop(client.19727614.0:198571003 6.2f3 e6215/3661 6:cf4463ef:::rbd_data.2d04ef6b8b4567.0000000000000c33:head v 6215'6616483)",
+            "initiated_at": "2019-05-10 12:52:46.893508",
+            "age": 298.875238,
+            "duration": 0.274376,
+            "type_data": {
+                "flag_point": "commit sent; apply or cleanup",
+                "events": [
+                    {
+                        "time": "2019-05-10 12:52:46.893508",
+                        "event": "initiated"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:46.893544",
+                        "event": "queued_for_pg"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:46.893555",
+                        "event": "reached_pg"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:46.893560",
+                        "event": "started"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:47.167845",
+                        "event": "commit_sent"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:47.167883",
+                        "event": "sub_op_applied"
+                    },
+                    {
+                        "time": "2019-05-10 12:52:47.167883",
+                        "event": "done"
+                    }
+                ]
+            }
+        },
+        {
+            "description": "osd_repop(client.19727614.0:198575471 6.744 e6215/5294 6:22efbc2d:::rbd_data.2d04ef6b8b4567.0000000000000102:head v 6215'1939500)",
+            "initiated_at": "2019-05-10 12:56:41.244766",
+            "age": 64.523980,
+            "duration": 0.228583,
+            "type_data": {
+                "flag_point": "commit sent; apply or cleanup",
+                "events": [
+                    {
+                        "time": "2019-05-10 12:56:41.244766",
+                        "event": "initiated"
+                    },
+                    {
+                        "time": "2019-05-10 12:56:41.244890",
+                        "event": "queued_for_pg"
+                    },
+                    {
+                        "time": "2019-05-10 12:56:41.244919",
+                        "event": "reached_pg"
+                    },
+                    {
+                        "time": "2019-05-10 12:56:41.244936",
+                        "event": "started"
+                    },
+                    {
+                        "time": "2019-05-10 12:56:41.473318",
+                        "event": "commit_sent"
+                    },
+                    {
+                        "time": "2019-05-10 12:56:41.473347",
+                        "event": "sub_op_applied"
+                    },
+                    {
+                        "time": "2019-05-10 12:56:41.473348",
+                        "event": "done"
+                    }
+                ]
+            }
+        },
+        {
+            "description": "osd_op(client.18496022.0:622151043 6.634 6:2c6ab903:::rbd_data.1a8b266b8b4567.0000000000001f47:head [read 827392~8192] snapc 0=[] ondisk+read+known_if_redirected e6215)",
+            "initiated_at": "2019-05-10 12:56:41.247778",
+            "age": 64.520967,
+            "duration": 0.225002,
+            "type_data": {
+                "flag_point": "started",
+                "client_info": {
+                    "client": "client.18496022",
+                    "client_addr": "192.168.10.128:0/742640144",
+                    "tid": 622151043
+                },
+                "events": [
+                    {
+                        "time": "2019-05-10 12:56:41.247778",
+                        "event": "initiated"
+                    },
+                    {
+                        "time": "2019-05-10 12:56:41.247815",
+                        "event": "queued_for_pg"
+                    },
+                    {
+                        "time": "2019-05-10 12:56:41.247840",
+                        "event": "reached_pg"
+                    },
+                    {
+                        "time": "2019-05-10 12:56:41.247872",
+                        "event": "started"
+                    },
+                    {
+                        "time": "2019-05-10 12:56:41.472780",
+                        "event": "done"
+                    }
+                ]
+            }
+        },
+        {
+            "description": "osd_repop(client.23754356.0:21217587 6.664 e6215/5294 6:266ec1e0:::rbd_data.2c94186b8b4567.0000000000001103:head v 6215'1401184)",
+            "initiated_at": "2019-05-10 12:57:08.587211",
+            "age": 37.181534,
+            "duration": 0.223320,
+            "type_data": {
+                "flag_point": "commit sent; apply or cleanup",
+                "events": [
+                    {
+                        "time": "2019-05-10 12:57:08.587211",
+                        "event": "initiated"
+                    },
+                    {
+                        "time": "2019-05-10 12:57:08.587253",
+                        "event": "queued_for_pg"
+                    },
+                    {
+                        "time": "2019-05-10 12:57:08.587302",
+                        "event": "reached_pg"
+                    },
+                    {
+                        "time": "2019-05-10 12:57:08.587309",
+                        "event": "started"
+                    },
+                    {
+                        "time": "2019-05-10 12:57:08.810501",
+                        "event": "commit_sent"
+                    },
+                    {
+                        "time": "2019-05-10 12:57:08.810531",
+                        "event": "sub_op_applied"
+                    },
+                    {
+                        "time": "2019-05-10 12:57:08.810532",
+                        "event": "done"
+                    }
+                ]
+            }
+        },
+        {
+            "description": "osd_op(client.22202181.0:38856747 6.227 6:e4463219:::rbd_data.52c70f6b8b4567.000000000000082c:head [write 4141056~4096] snapc 0=[] ondisk+write+known_if_redirected e6215)",
+            "initiated_at": "2019-05-10 12:57:11.573546",
+            "age": 34.195200,
+            "duration": 0.263953,
+            "type_data": {
+                "flag_point": "commit sent; apply or cleanup",
+                "client_info": {
+                    "client": "client.22202181",
+                    "client_addr": "192.168.10.120:0/934617918",
+                    "tid": 38856747
+                },
+                "events": [
+                    {
+                        "time": "2019-05-10 12:57:11.573546",
+                        "event": "initiated"
+                    },
+                    {
+                        "time": "2019-05-10 12:57:11.573593",
+                        "event": "queued_for_pg"
+                    },
+                    {
+                        "time": "2019-05-10 12:57:11.573643",
+                        "event": "reached_pg"
+                    },
+                    {
+                        "time": "2019-05-10 12:57:11.573671",
+                        "event": "started"
+                    },
+                    {
+                        "time": "2019-05-10 12:57:11.573706",
+                        "event": "waiting for subops from 22,30"
+                    },
+                    {
+                        "time": "2019-05-10 12:57:11.574750",
+                        "event": "sub_op_commit_rec from 30"
+                    },
+                    {
+                        "time": "2019-05-10 12:57:11.574762",
+                        "event": "sub_op_commit_rec from 22"
+                    },
+                    {
+                        "time": "2019-05-10 12:57:11.837454",
+                        "event": "op_commit"
+                    },
+                    {
+                        "time": "2019-05-10 12:57:11.837476",
+                        "event": "commit_sent"
+                    },
+                    {
+                        "time": "2019-05-10 12:57:11.837490",
+                        "event": "op_applied"
+                    },
+                    {
+                        "time": "2019-05-10 12:57:11.837498",
+                        "event": "done"
+                    }
+                ]
+            }
+        },
+        {
+            "description": "osd_op(client.24689231.0:23834171 6.1d0 6:0b805fcd:::rbd_data.78776a6b8b4567.00000000000012b5:head [write 2060288~4096] snapc 0=[] ondisk+write+known_if_redirected e6215)",
+            "initiated_at": "2019-05-10 12:57:36.881706",
+            "age": 8.887040,
+            "duration": 0.190160,
+            "type_data": {
+                "flag_point": "commit sent; apply or cleanup",
+                "client_info": {
+                    "client": "client.24689231",
+                    "client_addr": "192.168.10.146:0/3271262952",
+                    "tid": 23834171
+                },
+                "events": [
+                    {
+                        "time": "2019-05-10 12:57:36.881706",
+                        "event": "initiated"
+                    },
+                    {
+                        "time": "2019-05-10 12:57:36.881750",
+                        "event": "queued_for_pg"
+                    },
+                    {
+                        "time": "2019-05-10 12:57:36.881789",
+                        "event": "reached_pg"
+                    },
+                    {
+                        "time": "2019-05-10 12:57:36.881812",
+                        "event": "started"
+                    },
+                    {
+                        "time": "2019-05-10 12:57:36.881844",
+                        "event": "waiting for subops from 23,36"
+                    },
+                    {
+                        "time": "2019-05-10 12:57:36.882441",
+                        "event": "op_commit"
+                    },
+                    {
+                        "time": "2019-05-10 12:57:36.882444",
+                        "event": "op_applied"
+                    },
+                    {
+                        "time": "2019-05-10 12:57:36.882926",
+                        "event": "sub_op_commit_rec from 36"
+                    },
+                    {
+                        "time": "2019-05-10 12:57:37.071810",
+                        "event": "sub_op_commit_rec from 23"
+                    },
+                    {
+                        "time": "2019-05-10 12:57:37.071849",
+                        "event": "commit_sent"
+                    },
+                    {
+                        "time": "2019-05-10 12:57:37.071865",
+                        "event": "done"
+                    }
+                ]
+            }
+        },
+        {
+            "description": "osd_op(client.22202181.0:38857103 6.227 6:e4463219:::rbd_data.52c70f6b8b4567.000000000000082c:head [write 4145152~4096] snapc 0=[] ondisk+write+known_if_redirected e6215)",
+            "initiated_at": "2019-05-10 12:57:43.604719",
+            "age": 2.164027,
+            "duration": 0.135191,
+            "type_data": {
+                "flag_point": "commit sent; apply or cleanup",
+                "client_info": {
+                    "client": "client.22202181",
+                    "client_addr": "192.168.10.120:0/934617918",
+                    "tid": 38857103
+                },
+                "events": [
+                    {
+                        "time": "2019-05-10 12:57:43.604719",
+                        "event": "initiated"
+                    },
+                    {
+                        "time": "2019-05-10 12:57:43.604810",
+                        "event": "queued_for_pg"
+                    },
+                    {
+                        "time": "2019-05-10 12:57:43.604865",
+                        "event": "reached_pg"
+                    },
+                    {
+                        "time": "2019-05-10 12:57:43.604912",
+                        "event": "started"
+                    },
+                    {
+                        "time": "2019-05-10 12:57:43.604983",
+                        "event": "waiting for subops from 22,30"
+                    },
+                    {
+                        "time": "2019-05-10 12:57:43.606015",
+                        "event": "sub_op_commit_rec from 22"
+                    },
+                    {
+                        "time": "2019-05-10 12:57:43.606095",
+                        "event": "sub_op_commit_rec from 30"
+                    },
+                    {
+                        "time": "2019-05-10 12:57:43.739867",
+                        "event": "op_commit"
+                    },
+                    {
+                        "time": "2019-05-10 12:57:43.739889",
+                        "event": "commit_sent"
+                    },
+                    {
+                        "time": "2019-05-10 12:57:43.739891",
+                        "event": "op_applied"
+                    },
+                    {
+                        "time": "2019-05-10 12:57:43.739910",
+                        "event": "done"
+                    }
+                ]
+            }
+        }
+    ]
+}

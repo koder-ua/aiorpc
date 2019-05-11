@@ -9,7 +9,7 @@ from .apis import (ConnectionClosed, get_key_enc, configure, expose_func, expose
                    ZlibStreamCompressor, ZlibStreamDecompressor, register_startup, register_shutdown, ConfigVar,
                    SimpleBlockStream, JsonSerializer)
 from .client import IAIORPCNode, ConnectionPool, iter_unreachable, make_aiorpc_conn
-from .plugins import HistoricCollectionConfig, HistoricCollectionStatus
+from .plugins import HistoricCollectionConfig, HistoricCollectionStatus, unpack_historic_data
 from .aiohttp_transport import AIOHttpTransportClient, start_rpc_server
 
 

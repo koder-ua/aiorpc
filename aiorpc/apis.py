@@ -14,6 +14,7 @@ from typing import (AsyncIterable, BinaryIO, NewType, AsyncContextManager, Union
                     TypeVar, Dict, Type, Generic, Coroutine, Tuple, List, NamedTuple, AsyncIterator)
 from dataclasses import dataclass, field
 
+import msgpack
 
 from koder_utils import ICloseOnExit
 
@@ -464,6 +465,13 @@ class JsonSerializer(ISerializer):
     def unpack(self, data: bytes) -> Any:
         return json.loads(data.decode())
 
+
+class MsgpackSerializer(ISerializer):
+    def pack(self, data: Any) -> bytes:
+        return msgpack.packb(data, use_bin_type=True)
+
+    def unpack(self, data: bytes) -> Any:
+        return msgpack.unpackb(data, raw=False)
 
 # ------- STREAMERS - check sum, stream of blocks, etc -----------------------------------------------------------------
 
