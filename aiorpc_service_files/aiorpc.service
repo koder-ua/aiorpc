@@ -5,7 +5,7 @@ Description=Aiorpc server
 WorkingDirectory={INSTALL}
 Environment="PYTHONUNBUFFERED=1"
 Type=simple
-ExecStart="{INSTALL}/usr/bin/python3.7" -m aiorpc server --config '{CONFIG_PATH}'
+ExecStart="{INSTALL}/usr/bin/python3.7" -m aiorpc server --config '{CONFIG_PATH}' --persistent-log
 StandardOutput=null
 
 [Install]

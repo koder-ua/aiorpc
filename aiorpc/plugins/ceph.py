@@ -1,8 +1,8 @@
 import os
 import abc
 import json
+import socket
 
-import msgpack
 import time
 import asyncio
 import os.path
@@ -13,6 +13,8 @@ from pathlib import Path
 from dataclasses import dataclass, field
 from typing import (Iterator, List, Dict, Tuple, Any, Callable, Set, Iterable, Optional, AsyncIterator, Awaitable,
                     BinaryIO, cast)
+
+import msgpack
 
 from koder_utils import LocalHost, b2ssize
 
@@ -311,6 +313,11 @@ class CephHistoricDumper:
         return bool(running)
 
     def start(self) -> None:
+        params = {
+            'hostname': socket.gethostname(),
+            'config': self.cfg.__dict__}
+        self.record_file.write_record(*pack_record(RecId.params, params))
+
         assert not self.active_loops_tasks
         self.historic = DumpHistoric(self.cli, self.cfg, self.record_file)
 

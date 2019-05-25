@@ -56,6 +56,7 @@ def parse_args(argv: List[str]) -> Any:
             sbp.add_argument("--config", metavar='CONFIG_FILE', required=True,
                              help="Config file path (default: %(default)s)")
         sbp.add_argument("--install-root", default=None, help="Dev hack, dont use it")
+        sbp.add_argument("--persistent-log", action="store_true", help="Store persistent logs")
 
     return parser.parse_args(argv[1:])
 
@@ -69,8 +70,7 @@ def main(argv: List[str]) -> int:
         service.INSTALL_PATH = opts.install_root
 
     cfg = get_config(opts.config)
-    config_logging(cfg, no_persistent=True)
-
+    config_logging(cfg, no_persistent=not opts.persistent_log)
 
     if opts.subparser_name == 'status':
         inventory = read_inventory(get_inventory_path())
